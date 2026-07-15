@@ -48,7 +48,7 @@ resource "livck_statuspage_component" "production" {
 
 ### Required
 
-- `key` (String) Lowercase key, e.g. `env`, `team`, `critical`. Allowed: `a-z`, `0-9`, `_`, `.`, `/`, `-` (must start alphanumeric). `:` and `=` are reserved separators.
+- `key` (String) Lowercase key, e.g. `env`, `team`, `critical`. Allowed: `a-z`, `0-9`, `_`, `.`, `-` (must start and end alphanumeric, 1-50 chars). `:`, `=` and `/` are not allowed.
 
 ### Optional
 
