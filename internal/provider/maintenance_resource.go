@@ -235,11 +235,18 @@ func maintenanceInputFromModel(ctx context.Context, m *maintenanceModel) (client
 		ScheduledEnd:   m.ScheduledEnd.ValueString(),
 	}
 
+	// A non-null Set (even empty) is sent as an explicit list so clearing to []
+	// reaches the API; a null Set stays unmanaged (key omitted). Bare []string
+	// + omitempty could not distinguish these — hence the pointer.
 	if !m.ServiceIDs.IsNull() && !m.ServiceIDs.IsUnknown() {
-		diags.Append(m.ServiceIDs.ElementsAs(ctx, &in.ServiceIDs, false)...)
+		list := []string{}
+		diags.Append(m.ServiceIDs.ElementsAs(ctx, &list, false)...)
+		in.ServiceIDs = &list
 	}
 	if !m.StatuspageIDs.IsNull() && !m.StatuspageIDs.IsUnknown() {
-		diags.Append(m.StatuspageIDs.ElementsAs(ctx, &in.StatuspageIDs, false)...)
+		list := []string{}
+		diags.Append(m.StatuspageIDs.ElementsAs(ctx, &list, false)...)
+		in.StatuspageIDs = &list
 	}
 	if !m.AutoStart.IsNull() && !m.AutoStart.IsUnknown() {
 		in.AutoStart = m.AutoStart.ValueBoolPointer()

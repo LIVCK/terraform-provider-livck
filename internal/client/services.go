@@ -32,7 +32,7 @@ type ServiceSettingsInput struct {
 	IntervalSeconds *int64          `json:"interval_seconds,omitempty"`
 	TimeoutSeconds  *int64          `json:"timeout_seconds,omitempty"`
 	Retries         *int64          `json:"retries,omitempty"`
-	AssignedProbes  []string        `json:"assigned_probes,omitempty"`
+	AssignedProbes  *[]string       `json:"assigned_probes,omitempty"`
 	Config          json.RawMessage `json:"config,omitempty"`
 }
 

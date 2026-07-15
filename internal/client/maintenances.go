@@ -28,18 +28,18 @@ type Maintenance struct {
 }
 
 type MaintenanceInput struct {
-	Title          any      `json:"title,omitempty"`
-	Type           *string  `json:"type,omitempty"`
-	ScheduledStart string   `json:"scheduled_start,omitempty"`
-	ScheduledEnd   string   `json:"scheduled_end,omitempty"`
-	ServiceIDs     []string `json:"service_ids,omitempty"`
-	StatuspageIDs  []string `json:"statuspage_ids,omitempty"`
-	AutoStart      *bool    `json:"auto_start,omitempty"`
-	AutoComplete   *bool    `json:"auto_complete,omitempty"`
-	Notify24h      *bool    `json:"notify_24h,omitempty"`
-	Notify1h       *bool    `json:"notify_1h,omitempty"`
-	NotifyStart    *bool    `json:"notify_start,omitempty"`
-	NotifyComplete *bool    `json:"notify_complete,omitempty"`
+	Title          any       `json:"title,omitempty"`
+	Type           *string   `json:"type,omitempty"`
+	ScheduledStart string    `json:"scheduled_start,omitempty"`
+	ScheduledEnd   string    `json:"scheduled_end,omitempty"`
+	ServiceIDs     *[]string `json:"service_ids,omitempty"`
+	StatuspageIDs  *[]string `json:"statuspage_ids,omitempty"`
+	AutoStart      *bool     `json:"auto_start,omitempty"`
+	AutoComplete   *bool     `json:"auto_complete,omitempty"`
+	Notify24h      *bool     `json:"notify_24h,omitempty"`
+	Notify1h       *bool     `json:"notify_1h,omitempty"`
+	NotifyStart    *bool     `json:"notify_start,omitempty"`
+	NotifyComplete *bool     `json:"notify_complete,omitempty"`
 }
 
 func (c *Client) CreateMaintenance(ctx context.Context, in MaintenanceInput) (*Maintenance, error) {

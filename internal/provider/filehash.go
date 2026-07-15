@@ -77,20 +77,28 @@ func hashFile(p string) (string, error) {
 }
 
 // urlFollowsHashModifier keeps a Computed served-URL stable across plans UNLESS
-// its sibling content hash is changing — a re-uploaded asset gets a brand-new
-// URL server-side, so a plain UseStateForUnknown would promise "no change" and
-// then trip Terraform's post-apply consistency check. When the hash moves, the
-// URL is marked unknown ("known after apply"); otherwise the prior value stays.
+// the local asset file's content is changing — a re-uploaded asset gets a
+// brand-new URL server-side, so a plain UseStateForUnknown would promise "no
+// change" and then trip Terraform's post-apply consistency check.
+//
+// CRITICAL: it must NOT read the sibling *_hash attribute from req.Plan. During
+// SchemaModifyPlan the plan is a snapshot and attribute modifiers do not observe
+// each other's just-computed values, so the sibling hash there is still the OLD
+// (state) value — comparing it to state always says "unchanged", the URL is kept,
+// and the apply then re-uploads to a new URL → "inconsistent result after apply".
+// Instead we hash the LOCAL FILE directly (the same source fileHashModifier uses)
+// and compare to the state's stored hash. Self-contained, order-independent.
 type urlFollowsHashModifier struct {
+	pathAttr string
 	hashAttr string
 }
 
-func urlFollowsHash(hashAttr string) planmodifier.String {
-	return urlFollowsHashModifier{hashAttr: hashAttr}
+func urlFollowsHash(pathAttr, hashAttr string) planmodifier.String {
+	return urlFollowsHashModifier{pathAttr: pathAttr, hashAttr: hashAttr}
 }
 
 func (m urlFollowsHashModifier) Description(_ context.Context) string {
-	return fmt.Sprintf("Marks the URL unknown when %q changes; keeps the prior value otherwise.", m.hashAttr)
+	return fmt.Sprintf("Marks the URL unknown when the file at %q changes; keeps the prior value otherwise.", m.pathAttr)
 }
 
 func (m urlFollowsHashModifier) MarkdownDescription(ctx context.Context) string {
@@ -107,14 +115,39 @@ func (m urlFollowsHashModifier) PlanModifyString(ctx context.Context, req planmo
 		return
 	}
 
-	var planHash, stateHash types.String
-	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root(m.hashAttr), &planHash)...)
+	var filePath types.String
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root(m.pathAttr), &filePath)...)
+	var stateHash types.String
 	resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root(m.hashAttr), &stateHash)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	if planHash.Equal(stateHash) {
+	// No file configured now: if there was one before (state hash set), the asset
+	// is being removed and the URL will change → unknown; otherwise nothing.
+	if filePath.IsNull() {
+		if stateHash.IsNull() {
+			resp.PlanValue = req.StateValue
+		} else {
+			resp.PlanValue = types.StringUnknown()
+		}
+		return
+	}
+	// Path interpolated from something still unknown → settle at apply.
+	if filePath.IsUnknown() {
+		resp.PlanValue = types.StringUnknown()
+		return
+	}
+
+	hash, err := hashFile(filePath.ValueString())
+	if err != nil {
+		// Let fileHashModifier surface the read error; keep the URL unknown.
+		resp.PlanValue = types.StringUnknown()
+		return
+	}
+
+	// Unchanged content → keep the stable URL; changed → re-upload → unknown.
+	if stateHash.ValueString() == hash {
 		resp.PlanValue = req.StateValue
 		return
 	}

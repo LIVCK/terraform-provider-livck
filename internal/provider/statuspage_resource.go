@@ -200,9 +200,9 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				Optional:            true,
 				MarkdownDescription: "Path to a local favicon file (ico/png/svg, ≤1 MB).",
 			},
-			"logo_url":       computedURL("The served logo URL.", "logo_hash"),
-			"logo_dark_url":  computedURL("The served dark-mode logo URL.", "logo_dark_hash"),
-			"favicon_url":    computedURL("The served favicon URL.", "favicon_hash"),
+			"logo_url":       computedURL("The served logo URL.", "logo", "logo_hash"),
+			"logo_dark_url":  computedURL("The served dark-mode logo URL.", "logo_dark", "logo_dark_hash"),
+			"favicon_url":    computedURL("The served favicon URL.", "favicon", "favicon_hash"),
 			"logo_hash":      computedHash("logo"),
 			"logo_dark_hash": computedHash("logo_dark"),
 			"favicon_hash":   computedHash("favicon"),
@@ -210,11 +210,11 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	}
 }
 
-func computedURL(desc, hashAttr string) schema.StringAttribute {
+func computedURL(desc, pathAttr, hashAttr string) schema.StringAttribute {
 	return schema.StringAttribute{
 		Computed:            true,
 		MarkdownDescription: desc,
-		PlanModifiers:       []planmodifier.String{urlFollowsHash(hashAttr)},
+		PlanModifiers:       []planmodifier.String{urlFollowsHash(pathAttr, hashAttr)},
 	}
 }
 
@@ -306,9 +306,12 @@ func (r *statuspageResource) Read(ctx context.Context, req resource.ReadRequest,
 	// a value different from the one captured at upload time and diff forever.
 	// The URL only meaningfully changes when WE re-upload (driven by the content
 	// hash in Update), so on a plain refresh we keep the captured value.
-	newState.LogoURL = state.LogoURL
-	newState.LogoDarkURL = state.LogoDarkURL
-	newState.FaviconURL = state.FaviconURL
+	// On a plain refresh keep the URL we captured at upload time (the server
+	// regenerates it async); but after `terraform import` the state URL is null,
+	// so fall back to the server's current value to populate it.
+	newState.LogoURL = keepURL(state.LogoURL, newState.LogoURL)
+	newState.LogoDarkURL = keepURL(state.LogoDarkURL, newState.LogoDarkURL)
+	newState.FaviconURL = keepURL(state.FaviconURL, newState.FaviconURL)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, newState)...)
 }
@@ -523,4 +526,13 @@ func keepOrEchoSet(ctx context.Context, prior *statuspageModel, get func(*status
 	set, d := types.SetValueFrom(ctx, types.StringType, remote)
 	diags.Append(d...)
 	return set
+}
+
+// keepURL keeps the state-captured asset URL on refresh, but uses the freshly
+// read server value when the state has none yet (import).
+func keepURL(state, remote types.String) types.String {
+	if state.IsNull() || state.IsUnknown() {
+		return remote
+	}
+	return state
 }

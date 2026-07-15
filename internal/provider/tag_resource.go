@@ -61,9 +61,9 @@ func (r *tagResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"key": schema.StringAttribute{
 				Required: true,
 				MarkdownDescription: "Lowercase key, e.g. `env`, `team`, `critical`. Allowed: `a-z`, `0-9`, " +
-					"`_`, `.`, `/`, `-` (must start alphanumeric). `:` and `=` are reserved separators.",
+					"`_`, `.`, `-` (must start and end alphanumeric, 1-50 chars). `:`, `=` and `/` are not allowed.",
 				Validators: []validator.String{
-					stringvalidator.RegexMatches(tagKeyPattern, "must be lowercase and may contain a-z, 0-9, _, ., /, - (starting alphanumeric)"),
+					stringvalidator.RegexMatches(tagKeyPattern, "must be lowercase, start and end alphanumeric, and may contain _, . and - in between (1-50 chars; no /, : or =)"),
 					stringvalidator.LengthAtMost(50),
 				},
 			},

@@ -299,7 +299,9 @@ func settingsInputFromModel(ctx context.Context, m *settingsModel) (*client.Serv
 		in.Retries = m.Retries.ValueInt64Pointer()
 	}
 	if !m.AssignedProbes.IsNull() && !m.AssignedProbes.IsUnknown() {
-		diags.Append(m.AssignedProbes.ElementsAs(ctx, &in.AssignedProbes, false)...)
+		probes := []string{}
+		diags.Append(m.AssignedProbes.ElementsAs(ctx, &probes, false)...)
+		in.AssignedProbes = &probes
 	}
 	if !m.Config.IsNull() && !m.Config.IsUnknown() {
 		in.Config = json.RawMessage(m.Config.ValueString())
