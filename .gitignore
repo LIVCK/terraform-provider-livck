@@ -1,0 +1,5 @@
+terraform-provider-livck
+dist/
+*.tfstate*
+.terraform/
+vendor/

@@ -1,0 +1,39 @@
+name: Tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - run: go mod download
+      - run: go build -v ./...
+      - run: go vet ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+      - run: go test -v -race -cover ./internal/...
+  # Acceptance tests need a live instance + org token — run on demand.
+  # Set LIVCK_ENDPOINT + LIVCK_API_TOKEN as repository secrets first.
+  acceptance:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - run: make testacc
+        env:
+          TF_ACC: "1"
+          LIVCK_ENDPOINT: ${{ secrets.LIVCK_ENDPOINT }}
+          LIVCK_API_TOKEN: ${{ secrets.LIVCK_API_TOKEN }}

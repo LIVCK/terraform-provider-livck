@@ -1,0 +1,1 @@
+terraform import livck_maintenance.db_upgrade <maintenance_public_id>
