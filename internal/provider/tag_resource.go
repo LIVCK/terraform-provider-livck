@@ -26,8 +26,10 @@ type tagResource struct {
 	client *client.Client
 }
 
-// Mirrors the server-side key rule (StoreTagRequest): lowercase, no separators.
-var tagKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_./-]*$`)
+// Mirrors the server-side key rule (TagInput::KEY_PATTERN): lowercase, starts
+// and ends alphanumeric, inner `_ . -` only — NO `/`, no trailing separator.
+// Keep in exact sync with the Laravel constant or configs pass here and 422 late.
+var tagKeyPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9_.-]{0,48}[a-z0-9])?$`)
 
 type tagModel struct {
 	ID    types.String `tfsdk:"id"`
