@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -92,6 +93,7 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"status": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Live monitoring status (runtime state, read-only).",
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"tags": schema.SetAttribute{
 				ElementType: types.StringType,
@@ -111,14 +113,17 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 						Optional:            true,
 						Computed:            true,
 						MarkdownDescription: "Check interval. Floor/ceiling depend on your plan and the check type (e.g. SSL checks run at most hourly).",
+						PlanModifiers:       []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
 					},
 					"timeout_seconds": schema.Int64Attribute{
-						Optional: true,
-						Computed: true,
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
 					},
 					"retries": schema.Int64Attribute{
-						Optional: true,
-						Computed: true,
+						Optional:      true,
+						Computed:      true,
+						PlanModifiers: []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
 					},
 					"assigned_probes": schema.SetAttribute{
 						ElementType:         types.StringType,
