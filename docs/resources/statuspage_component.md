@@ -39,12 +39,14 @@ resource "livck_statuspage_component" "website" {
 - `description` (String)
 - `description_translations` (Map of String) Multilingual description as a `{locale = value}` map.
 - `display_order` (Number) Position within the parent (ascending). Omitted, the server appends at the end. Set explicit values (e.g. 10, 20, 30) to manage ordering declaratively.
+- `hide_operational_children` (Boolean) Collapse a fully-operational group into a single row (hide its healthy children).
 - `is_group` (Boolean)
 - `is_visible` (Boolean)
 - `name` (String) Single-language name. Exactly one of `name` and `name_translations` must be set.
 - `name_translations` (Map of String) Multilingual name as a `{locale = value}` map.
 - `parent_id` (String) Public id of a group component on the same page.
 - `service_id` (String) Public id of a monitored service whose status drives this component.
+- `show_uptime_bars` (Boolean) Render per-child uptime bars in this group.
 - `sync_new_visible` (Boolean) Whether services that later join the sync tag appear as VISIBLE children (default `true`). Only meaningful together with `sync_tag_id`.
 - `sync_tag_id` (String) Tag id (`livck_tag.….id`) that turns this GROUP into a tag-synced group: every service carrying the tag materializes as a machine-managed child server-side. Do NOT declare those children in Terraform — they are owned by the sync (`is_sync_managed` in the API) and follow tagging changes automatically. Only valid on groups (`is_group = true`); unsetting it releases the group and its children into normal, manually-managed components.
 

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -85,12 +86,48 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 		return err
 	}
 
+	contentType := ""
+	if body != nil {
+		contentType = "application/json"
+	}
+
+	return c.send(req, contentType, out)
+}
+
+// doMultipart uploads a single file as multipart/form-data under the given
+// field, reusing the same auth, retry and error handling as do(). PHP only
+// parses multipart bodies for POST, so callers must use POST.
+func (c *Client) doMultipart(ctx context.Context, path, field, filename string, content []byte, out any) error {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	part, err := mw.CreateFormFile(field, filename)
+	if err != nil {
+		return err
+	}
+	if _, err := part.Write(content); err != nil {
+		return err
+	}
+	if err := mw.Close(); err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, &buf)
+	if err != nil {
+		return err
+	}
+
+	return c.send(req, mw.FormDataContentType(), out)
+}
+
+// send sets the shared headers, executes the request and maps the response the
+// same way for JSON and multipart callers.
+func (c *Client) send(req *http.Request, contentType string, out any) error {
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
 	// Deliberately NO Accept-Language: translatable fields must resolve to the
 	// org's default locale so reads are stable for state comparison.
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 
 	resp, err := c.http.Do(req)

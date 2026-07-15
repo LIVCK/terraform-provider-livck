@@ -14,13 +14,71 @@ type Statuspage struct {
 	Slug             string            `json:"slug"`
 	IsPublished      bool              `json:"is_published"`
 	AccessType       string            `json:"access_type"`
-	Components       []Component       `json:"components"`
+	// Appearance
+	PrimaryColor         *string `json:"primary_color"`
+	SecondaryColor       *string `json:"secondary_color"`
+	CustomCSS            *string `json:"custom_css"`
+	ImprintURL           *string `json:"imprint_url"`
+	PrivacyPolicyURL     *string `json:"privacy_policy_url"`
+	ShowLogo             bool    `json:"show_logo"`
+	ShowAffectedServices bool    `json:"show_affected_services"`
+	ShowIncidentHistory  bool    `json:"show_incident_history"`
+	// Served asset URLs (managed via the dedicated asset endpoints)
+	LogoURL     *string `json:"logo_url"`
+	LogoDarkURL *string `json:"logo_dark_url"`
+	FaviconURL  *string `json:"favicon_url"`
+	// Access
+	HasPassword        bool        `json:"has_password"`
+	EmailWhitelist     []string    `json:"email_whitelist"`
+	SubscriberChannels []string    `json:"subscriber_channels"`
+	Components         []Component `json:"components"`
 }
 
-// Translatable fields are `any`: a plain string or a {locale: value} map.
+// StatuspageInput: translatable Name is `any` (plain string or {locale: value}
+// map). Nullable appearance fields keep omitempty — the provider only sends the
+// keys the practitioner actually set, and passes an explicit null (via a pointer
+// to nil is not possible with omitempty, so clearing is done by sending the zero
+// where meaningful). Password is write-only (never echoed; see HasPassword).
+// Every field is omitempty: the provider only sends the appearance/access keys
+// the practitioner actually manages (a null Optional attribute stops managing
+// that field, mirroring the tag/translation "null = unmanaged" idiom), so an
+// unmanaged field is never clobbered. Password is write-only (never echoed).
 type StatuspageInput struct {
-	Name any     `json:"name,omitempty"`
-	Slug *string `json:"slug,omitempty"`
+	Name                 any       `json:"name,omitempty"`
+	Slug                 *string   `json:"slug,omitempty"`
+	PrimaryColor         *string   `json:"primary_color,omitempty"`
+	SecondaryColor       *string   `json:"secondary_color,omitempty"`
+	CustomCSS            *string   `json:"custom_css,omitempty"`
+	ImprintURL           *string   `json:"imprint_url,omitempty"`
+	PrivacyPolicyURL     *string   `json:"privacy_policy_url,omitempty"`
+	ShowLogo             *bool     `json:"show_logo,omitempty"`
+	ShowAffectedServices *bool     `json:"show_affected_services,omitempty"`
+	ShowIncidentHistory  *bool     `json:"show_incident_history,omitempty"`
+	AccessType           *string   `json:"access_type,omitempty"`
+	Password             *string   `json:"password,omitempty"`
+	EmailWhitelist       *[]string `json:"email_whitelist,omitempty"`
+	SubscriberChannels   *[]string `json:"subscriber_channels,omitempty"`
+}
+
+// UploadStatuspageAsset POSTs a logo/logo-dark/favicon file (multipart). asset
+// is the URL slug (`logo`, `logo-dark`, `favicon`).
+func (c *Client) UploadStatuspageAsset(ctx context.Context, statuspageID, asset, filename string, content []byte) (*Statuspage, error) {
+	var env dataEnvelope[Statuspage]
+	path := "/statuspages/" + url.PathEscape(statuspageID) + "/assets/" + url.PathEscape(asset)
+	if err := c.doMultipart(ctx, path, "file", filename, content, &env); err != nil {
+		return nil, err
+	}
+	return &env.Data, nil
+}
+
+// DeleteStatuspageAsset clears a logo/logo-dark/favicon collection.
+func (c *Client) DeleteStatuspageAsset(ctx context.Context, statuspageID, asset string) (*Statuspage, error) {
+	var env dataEnvelope[Statuspage]
+	path := "/statuspages/" + url.PathEscape(statuspageID) + "/assets/" + url.PathEscape(asset)
+	if err := c.do(ctx, http.MethodDelete, path, nil, &env); err != nil {
+		return nil, err
+	}
+	return &env.Data, nil
 }
 
 // Component mirrors the StatuspageComponentResource echo.
@@ -38,6 +96,8 @@ type Component struct {
 	SyncTagID               *string           `json:"sync_tag_id"`
 	SyncNewVisible          bool              `json:"sync_new_visible"`
 	IsSyncManaged           bool              `json:"is_sync_managed"`
+	ShowUptimeBars          bool              `json:"show_uptime_bars"`
+	HideOperationalChildren bool              `json:"hide_operational_children"`
 	Service                 *struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
@@ -48,15 +108,17 @@ type Component struct {
 // on purpose — clearing a link (re-parenting to root, unlinking a service)
 // requires an explicit null; an omitted key means "keep" server-side.
 type ComponentInput struct {
-	Name           any     `json:"name,omitempty"`
-	Description    any     `json:"description"`
-	ServiceID      *string `json:"service_id"`
-	ParentID       *string `json:"parent_id"`
-	IsGroup        *bool   `json:"is_group,omitempty"`
-	IsVisible      *bool   `json:"is_visible,omitempty"`
-	DisplayOrder   *int64  `json:"display_order,omitempty"`
-	SyncTagID      *string `json:"sync_tag_id"`
-	SyncNewVisible *bool   `json:"sync_new_visible,omitempty"`
+	Name                    any     `json:"name,omitempty"`
+	Description             any     `json:"description"`
+	ServiceID               *string `json:"service_id"`
+	ParentID                *string `json:"parent_id"`
+	IsGroup                 *bool   `json:"is_group,omitempty"`
+	IsVisible               *bool   `json:"is_visible,omitempty"`
+	DisplayOrder            *int64  `json:"display_order,omitempty"`
+	SyncTagID               *string `json:"sync_tag_id"`
+	SyncNewVisible          *bool   `json:"sync_new_visible,omitempty"`
+	ShowUptimeBars          *bool   `json:"show_uptime_bars,omitempty"`
+	HideOperationalChildren *bool   `json:"hide_operational_children,omitempty"`
 }
 
 func (c *Client) CreateStatuspage(ctx context.Context, in StatuspageInput) (*Statuspage, error) {

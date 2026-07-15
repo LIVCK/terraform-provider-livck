@@ -97,6 +97,10 @@ provider_installation {
   the first apply is a harmless no-op write that pins them to the declared values.
 - Children of a tag-synced group (`sync_tag_id`) are machine-managed server-side —
   never declare them in Terraform; manage membership by tagging services instead.
+- Statuspage served-asset URLs (`logo_url` etc.) settle a moment after upload
+  (async image conversion), so a root output referencing one may show a one-time
+  "output will change" right after a re-upload; it converges on the next apply.
+  The resource itself never perpetually diffs.
 
 ## Releasing
 

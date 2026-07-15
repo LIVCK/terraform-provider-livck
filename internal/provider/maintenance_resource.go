@@ -32,6 +32,7 @@ type maintenanceModel struct {
 	ID                types.String      `tfsdk:"id"`
 	Title             types.String      `tfsdk:"title"`
 	TitleTranslations types.Map         `tfsdk:"title_translations"`
+	Type              types.String      `tfsdk:"type"`
 	ScheduledStart    timetypes.RFC3339 `tfsdk:"scheduled_start"`
 	ScheduledEnd      timetypes.RFC3339 `tfsdk:"scheduled_end"`
 	ServiceIDs        types.Set         `tfsdk:"service_ids"`
@@ -72,6 +73,13 @@ func (r *maintenanceResource) Schema(_ context.Context, _ resource.SchemaRequest
 				ElementType:         types.StringType,
 				Optional:            true,
 				MarkdownDescription: "Multilingual title as a `{locale = value}` map.",
+			},
+			"type": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "`planned` (announced, SLA-excluded by default) or `emergency` (unannounced, counts against the SLA). Defaults to `planned`.",
+				Validators:          []validator.String{stringvalidator.OneOf("planned", "emergency")},
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"scheduled_start": schema.StringAttribute{
 				CustomType:          timetypes.RFC3339Type{},
@@ -222,6 +230,7 @@ func maintenanceInputFromModel(ctx context.Context, m *maintenanceModel) (client
 
 	in := client.MaintenanceInput{
 		Title:          translatableInput(ctx, m.Title, m.TitleTranslations, &diags),
+		Type:           optionalString(m.Type),
 		ScheduledStart: m.ScheduledStart.ValueString(),
 		ScheduledEnd:   m.ScheduledEnd.ValueString(),
 	}
@@ -270,6 +279,7 @@ func maintenanceModelFromAPI(ctx context.Context, remote *client.Maintenance, pr
 	}
 
 	m.Title, m.TitleTranslations = translatableFromAPI(ctx, remote.Title, remote.TitleTranslations, prior.TitleTranslations, &diags)
+	m.Type = types.StringValue(remote.Type)
 
 	// service/statuspage linkage: only track it when the config manages it —
 	// a null set stays null (the server may add auto-detected services).
@@ -298,4 +308,11 @@ func maintenanceModelFromAPI(ctx context.Context, remote *client.Maintenance, pr
 	}
 
 	return m, diags
+}
+
+func optionalString(v types.String) *string {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	return v.ValueStringPointer()
 }

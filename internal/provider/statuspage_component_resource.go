@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -45,6 +46,8 @@ type componentModel struct {
 	Status                  types.String `tfsdk:"status"`
 	SyncTagID               types.String `tfsdk:"sync_tag_id"`
 	SyncNewVisible          types.Bool   `tfsdk:"sync_new_visible"`
+	ShowUptimeBars          types.Bool   `tfsdk:"show_uptime_bars"`
+	HideOperationalChildren types.Bool   `tfsdk:"hide_operational_children"`
 }
 
 func NewStatuspageComponentResource() resource.Resource { return &statuspageComponentResource{} }
@@ -136,6 +139,18 @@ func (r *statuspageComponentResource) Schema(_ context.Context, _ resource.Schem
 				MarkdownDescription: "Whether services that later join the sync tag appear as VISIBLE " +
 					"children (default `true`). Only meaningful together with `sync_tag_id`.",
 			},
+			"show_uptime_bars": schema.BoolAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Render per-child uptime bars in this group.",
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+			},
+			"hide_operational_children": schema.BoolAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Collapse a fully-operational group into a single row (hide its healthy children).",
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+			},
 		},
 	}
 }
@@ -152,11 +167,13 @@ func (r *statuspageComponentResource) Create(ctx context.Context, req resource.C
 	}
 
 	in := client.ComponentInput{
-		Name:           translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics),
-		IsGroup:        plan.IsGroup.ValueBoolPointer(),
-		IsVisible:      plan.IsVisible.ValueBoolPointer(),
-		SyncTagID:      plan.SyncTagID.ValueStringPointer(),
-		SyncNewVisible: plan.SyncNewVisible.ValueBoolPointer(),
+		Name:                    translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics),
+		IsGroup:                 plan.IsGroup.ValueBoolPointer(),
+		IsVisible:               plan.IsVisible.ValueBoolPointer(),
+		SyncTagID:               plan.SyncTagID.ValueStringPointer(),
+		SyncNewVisible:          plan.SyncNewVisible.ValueBoolPointer(),
+		ShowUptimeBars:          boolPtr(plan.ShowUptimeBars),
+		HideOperationalChildren: boolPtr(plan.HideOperationalChildren),
 	}
 	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
 		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
@@ -217,11 +234,13 @@ func (r *statuspageComponentResource) Update(ctx context.Context, req resource.U
 		IsVisible: plan.IsVisible.ValueBoolPointer(),
 		// null clears the link server-side; omitted keeps it — send explicitly
 		// (sync_tag_id: null unsyncs the group the same way).
-		Description:    translatableInput(ctx, plan.Description, plan.DescriptionTranslations, &resp.Diagnostics),
-		ServiceID:      plan.ServiceID.ValueStringPointer(),
-		ParentID:       plan.ParentID.ValueStringPointer(),
-		SyncTagID:      plan.SyncTagID.ValueStringPointer(),
-		SyncNewVisible: plan.SyncNewVisible.ValueBoolPointer(),
+		Description:             translatableInput(ctx, plan.Description, plan.DescriptionTranslations, &resp.Diagnostics),
+		ServiceID:               plan.ServiceID.ValueStringPointer(),
+		ParentID:                plan.ParentID.ValueStringPointer(),
+		SyncTagID:               plan.SyncTagID.ValueStringPointer(),
+		SyncNewVisible:          plan.SyncNewVisible.ValueBoolPointer(),
+		ShowUptimeBars:          boolPtr(plan.ShowUptimeBars),
+		HideOperationalChildren: boolPtr(plan.HideOperationalChildren),
 	}
 	if resp.Diagnostics.HasError() {
 		return
@@ -269,15 +288,17 @@ func (r *statuspageComponentResource) ImportState(ctx context.Context, req resou
 
 func componentModelFromAPI(ctx context.Context, remote *client.Component, statuspageID string, prior *componentModel, diags *diag.Diagnostics) *componentModel {
 	m := &componentModel{
-		ID:             types.StringValue(remote.ID),
-		StatuspageID:   types.StringValue(statuspageID),
-		ParentID:       types.StringPointerValue(remote.ParentID),
-		IsGroup:        types.BoolValue(remote.IsGroup),
-		IsVisible:      types.BoolValue(remote.IsVisible),
-		DisplayOrder:   types.Int64Value(remote.DisplayOrder),
-		Status:         types.StringValue(remote.Status),
-		SyncTagID:      types.StringPointerValue(remote.SyncTagID),
-		SyncNewVisible: types.BoolValue(remote.SyncNewVisible),
+		ID:                      types.StringValue(remote.ID),
+		StatuspageID:            types.StringValue(statuspageID),
+		ParentID:                types.StringPointerValue(remote.ParentID),
+		IsGroup:                 types.BoolValue(remote.IsGroup),
+		IsVisible:               types.BoolValue(remote.IsVisible),
+		DisplayOrder:            types.Int64Value(remote.DisplayOrder),
+		Status:                  types.StringValue(remote.Status),
+		SyncTagID:               types.StringPointerValue(remote.SyncTagID),
+		SyncNewVisible:          types.BoolValue(remote.SyncNewVisible),
+		ShowUptimeBars:          types.BoolValue(remote.ShowUptimeBars),
+		HideOperationalChildren: types.BoolValue(remote.HideOperationalChildren),
 	}
 
 	if remote.Service != nil {
@@ -304,4 +325,11 @@ func componentModelFromAPI(ctx context.Context, remote *client.Component, status
 	}
 
 	return m
+}
+
+func boolPtr(v types.Bool) *bool {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	return v.ValueBoolPointer()
 }

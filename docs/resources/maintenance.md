@@ -43,6 +43,7 @@ resource "livck_maintenance" "db_upgrade" {
 - `statuspage_ids` (Set of String) Status pages announcing this window (public ids).
 - `title` (String) Single-language title. Exactly one of `title` and `title_translations` must be set.
 - `title_translations` (Map of String) Multilingual title as a `{locale = value}` map.
+- `type` (String) `planned` (announced, SLA-excluded by default) or `emergency` (unannounced, counts against the SLA). Defaults to `planned`.
 
 ### Read-Only
 

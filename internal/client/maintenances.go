@@ -11,6 +11,7 @@ type Maintenance struct {
 	ID                string            `json:"id"`
 	Title             string            `json:"title"`
 	TitleTranslations map[string]string `json:"title_translations"`
+	Type              string            `json:"type"`
 	Status            string            `json:"status"`
 	ScheduledStart    string            `json:"scheduled_start"`
 	ScheduledEnd      string            `json:"scheduled_end"`
@@ -28,6 +29,7 @@ type Maintenance struct {
 
 type MaintenanceInput struct {
 	Title          any      `json:"title,omitempty"`
+	Type           *string  `json:"type,omitempty"`
 	ScheduledStart string   `json:"scheduled_start,omitempty"`
 	ScheduledEnd   string   `json:"scheduled_end,omitempty"`
 	ServiceIDs     []string `json:"service_ids,omitempty"`
