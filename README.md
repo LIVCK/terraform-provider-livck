@@ -92,6 +92,8 @@ provider_installation {
   stay console-managed.
 - Secrets inside `livck_service.settings.config` (header values, auth
   credentials) are write-only; after `terraform import` they must be re-applied.
+- `livck_maintenance` notify flags have no read echo: after `terraform import`
+  the first apply is a harmless no-op write that pins them to the declared values.
 
 ## Releasing
 

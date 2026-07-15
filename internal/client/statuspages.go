@@ -37,11 +37,14 @@ type Component struct {
 	} `json:"service"`
 }
 
+// ComponentInput: description/service_id/parent_id are sent WITHOUT omitempty
+// on purpose — clearing a link (re-parenting to root, unlinking a service)
+// requires an explicit null; an omitted key means "keep" server-side.
 type ComponentInput struct {
 	Name        string  `json:"name,omitempty"`
-	Description *string `json:"description,omitempty"`
-	ServiceID   *string `json:"service_id,omitempty"`
-	ParentID    *string `json:"parent_id,omitempty"`
+	Description *string `json:"description"`
+	ServiceID   *string `json:"service_id"`
+	ParentID    *string `json:"parent_id"`
 	IsGroup     *bool   `json:"is_group,omitempty"`
 	IsVisible   *bool   `json:"is_visible,omitempty"`
 }
