@@ -144,3 +144,48 @@ func TestMergeSecretsKeepsSentinelWithoutPrior(t *testing.T) {
 		t.Fatalf("sentinel must survive when no prior value exists (import case)")
 	}
 }
+
+func TestReconcileConfigKeepsUserJSONWhenSubsetOfSeededEcho(t *testing.T) {
+	prior := json.RawMessage(`{"method":"GET","conditions":[{"field":"status_code","operator":"gte","value":400,"status":"down"}]}`)
+	// Server echo: user's values + seeded defaults + sentinel-masked header
+	remote := json.RawMessage(`{
+		"method":"GET","follow_redirects":true,"verify_ssl":true,"ip_version":"auto",
+		"conditions":[{"field":"status_code","operator":"gte","value":400,"status":"down"}]
+	}`)
+
+	got, err := ReconcileConfig(remote, prior)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(prior) {
+		t.Fatalf("expected the user's exact JSON to be kept, got %s", got)
+	}
+}
+
+func TestReconcileConfigSurfacesRealRemoteDrift(t *testing.T) {
+	prior := json.RawMessage(`{"method":"GET"}`)
+	remote := json.RawMessage(`{"method":"POST","verify_ssl":true}`)
+
+	got, err := ReconcileConfig(remote, prior)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var out map[string]any
+	_ = json.Unmarshal(got, &out)
+	if out["method"] != "POST" {
+		t.Fatalf("expected remote drift to surface, got %s", got)
+	}
+}
+
+func TestReconcileConfigNullPriorStaysUnmanaged(t *testing.T) {
+	remote := json.RawMessage(`{"method":"GET","verify_ssl":true}`)
+
+	got, err := ReconcileConfig(remote, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != nil {
+		t.Fatalf("unmanaged config must stay null, got %s", got)
+	}
+}

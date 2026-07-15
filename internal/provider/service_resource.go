@@ -118,7 +118,6 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 					"config": schema.StringAttribute{
 						CustomType: jsontypes.NormalizedType{},
 						Optional:   true,
-						Computed:   true,
 						Sensitive:  true,
 						MarkdownDescription: "Check-type specific config as JSON (fields, conditions, headers, auth). " +
 							"Secret values (header values, auth credentials) are write-only: the API returns " +
@@ -326,15 +325,15 @@ func serviceModelFromAPI(ctx context.Context, remote *client.Service, prior *ser
 		priorConfig = json.RawMessage(prior.Settings.Config.ValueString())
 	}
 
-	if len(remote.Settings.Config) == 0 || string(remote.Settings.Config) == "null" {
+	reconciled, err := client.ReconcileConfig(remote.Settings.Config, priorConfig)
+	if err != nil {
+		diags.AddError("Decoding the service config failed", err.Error())
+		return m, diags
+	}
+	if reconciled == nil {
 		s.Config = jsontypes.NewNormalizedNull()
 	} else {
-		merged, err := client.MergeSecrets(remote.Settings.Config, priorConfig)
-		if err != nil {
-			diags.AddError("Decoding the service config failed", err.Error())
-			return m, diags
-		}
-		s.Config = jsontypes.NewNormalizedValue(string(merged))
+		s.Config = jsontypes.NewNormalizedValue(string(reconciled))
 	}
 
 	m.Settings = s

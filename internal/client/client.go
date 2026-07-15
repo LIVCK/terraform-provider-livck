@@ -44,7 +44,7 @@ func (e *ValidationError) Error() string {
 	var b strings.Builder
 	b.WriteString(e.Message)
 	for field, msgs := range e.Errors {
-		b.WriteString(fmt.Sprintf("\n  %s: %s", field, strings.Join(msgs, "; ")))
+		fmt.Fprintf(&b, "\n  %s: %s", field, strings.Join(msgs, "; "))
 	}
 	return b.String()
 }
@@ -97,7 +97,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {

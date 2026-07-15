@@ -66,3 +66,77 @@ func mergeValue(remote, prior any) any {
 		return remote
 	}
 }
+
+// ReconcileConfig decides what the provider stores for settings.config.
+//
+// The API seeds check-type defaults (method, verify_ssl, default conditions …)
+// into every persisted config, so the echo is a SUPERSET of what the user
+// declared. As long as everything the user wrote still matches the remote
+// value (after resolving keep-sentinels), the state keeps the user's exact
+// JSON — server-seeded defaults stay unmanaged and plans stay clean. Only
+// when a user-declared value actually changed remotely does the merged echo
+// surface as drift.
+//
+// A null/empty prior means the user does not manage config at all — it stays
+// null (the import case is documented: secrets and config must be re-declared).
+func ReconcileConfig(remote, prior json.RawMessage) (json.RawMessage, error) {
+	if len(prior) == 0 || string(prior) == "null" {
+		return nil, nil
+	}
+
+	merged, err := MergeSecrets(remote, prior)
+	if err != nil {
+		return nil, err
+	}
+
+	var priorVal, mergedVal any
+	if err := json.Unmarshal(prior, &priorVal); err != nil {
+		return nil, err
+	}
+	if len(merged) == 0 {
+		return merged, nil
+	}
+	if err := json.Unmarshal(merged, &mergedVal); err != nil {
+		return nil, err
+	}
+
+	if deepSubset(priorVal, mergedVal) {
+		return prior, nil
+	}
+
+	return merged, nil
+}
+
+// deepSubset reports whether every key/value declared in a exists with an
+// equal value in b (recursively for objects; arrays and scalars compare
+// exactly).
+func deepSubset(a, b any) bool {
+	switch av := a.(type) {
+	case map[string]any:
+		bv, ok := b.(map[string]any)
+		if !ok {
+			return false
+		}
+		for k, v := range av {
+			if !deepSubset(v, bv[k]) {
+				return false
+			}
+		}
+		return true
+	case []any:
+		bv, ok := b.([]any)
+		if !ok || len(av) != len(bv) {
+			return false
+		}
+		for i := range av {
+			if !deepSubset(av[i], bv[i]) {
+				return false
+			}
+		}
+		return true
+	default:
+		aj, _ := json.Marshal(a)
+		bj, _ := json.Marshal(b)
+		return string(aj) == string(bj)
+	}
+}
