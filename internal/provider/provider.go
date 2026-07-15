@@ -96,6 +96,8 @@ func (p *livckProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewServiceResource,
 		NewStatuspageResource,
 		NewStatuspageComponentResource,
+		NewStatuspageMetricResource,
+		NewStatuspageMetricSeriesResource,
 		NewMaintenanceResource,
 	}
 }

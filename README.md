@@ -51,7 +51,7 @@ export LIVCK_API_TOKEN="lvk_..."
 
 | Type | Name |
 |---|---|
-| Resource | `livck_service`, `livck_statuspage`, `livck_statuspage_component`, `livck_maintenance` |
+| Resource | `livck_service`, `livck_statuspage`, `livck_statuspage_component`, `livck_statuspage_metric`, `livck_statuspage_metric_series`, `livck_maintenance` |
 | Data Source | `livck_probes`, `livck_check_types`, `livck_statuspage` |
 
 Full documentation lives in [`docs/`](./docs) (generated via `tfplugindocs`,
