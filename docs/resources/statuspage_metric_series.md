@@ -37,10 +37,10 @@ resource "livck_statuspage_metric_series" "website" {
 ### Optional
 
 - `color` (String) Hex color (`#RRGGBB`). Omitted, the theme default applies.
+- `display_order` (Number) Position within the chart (ascending). Omitted, the server appends at the end.
 
 ### Read-Only
 
-- `display_order` (Number)
 - `id` (String) The ID of this resource.
 
 ## Import

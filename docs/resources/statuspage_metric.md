@@ -42,12 +42,12 @@ resource "livck_statuspage_metric" "uptime" {
 ### Optional
 
 - `component_id` (String) Public id of a component on the same page. Omitted, the chart renders standalone.
+- `display_order` (Number) Position on the page (ascending). Omitted, the server appends at the end.
 - `is_visible` (Boolean)
 - `suffix` (String) Unit suffix rendered after values (e.g. `ms`). The server stores an empty string when omitted.
 
 ### Read-Only
 
-- `display_order` (Number) Server-assigned position (read-only in v0).
 - `id` (String) The ID of this resource.
 
 ## Import

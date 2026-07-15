@@ -85,8 +85,11 @@ func (r *statuspageComponentResource) Schema(_ context.Context, _ resource.Schem
 				Default:  booldefault.StaticBool(true),
 			},
 			"display_order": schema.Int64Attribute{
-				Computed:            true,
-				MarkdownDescription: "Server-assigned position within the parent (read-only in v0).",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Position within the parent (ascending). Omitted, the server " +
+					"appends at the end. Set explicit values (e.g. 10, 20, 30) to manage ordering " +
+					"declaratively.",
 			},
 			"status": schema.StringAttribute{
 				Computed:            true,
@@ -111,6 +114,9 @@ func (r *statuspageComponentResource) Create(ctx context.Context, req resource.C
 		Name:      plan.Name.ValueString(),
 		IsGroup:   plan.IsGroup.ValueBoolPointer(),
 		IsVisible: plan.IsVisible.ValueBoolPointer(),
+	}
+	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
+		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
 	}
 	if !plan.Description.IsNull() {
 		in.Description = plan.Description.ValueStringPointer()
@@ -167,6 +173,9 @@ func (r *statuspageComponentResource) Update(ctx context.Context, req resource.U
 		Description: plan.Description.ValueStringPointer(),
 		ServiceID:   plan.ServiceID.ValueStringPointer(),
 		ParentID:    plan.ParentID.ValueStringPointer(),
+	}
+	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
+		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
 	}
 
 	updated, err := r.client.UpdateComponent(ctx, state.StatuspageID.ValueString(), state.ID.ValueString(), in)

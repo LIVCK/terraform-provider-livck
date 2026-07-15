@@ -38,6 +38,7 @@ resource "livck_statuspage_component" "website" {
 ### Optional
 
 - `description` (String)
+- `display_order` (Number) Position within the parent (ascending). Omitted, the server appends at the end. Set explicit values (e.g. 10, 20, 30) to manage ordering declaratively.
 - `is_group` (Boolean)
 - `is_visible` (Boolean)
 - `parent_id` (String) Public id of a group component on the same page.
@@ -45,7 +46,6 @@ resource "livck_statuspage_component" "website" {
 
 ### Read-Only
 
-- `display_order` (Number) Server-assigned position within the parent (read-only in v0).
 - `id` (String) The ID of this resource.
 - `status` (String) Live component status (runtime state driven by incidents/checks, read-only).
 

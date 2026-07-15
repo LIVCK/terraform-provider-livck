@@ -84,8 +84,9 @@ func (r *statuspageMetricResource) Schema(_ context.Context, _ resource.SchemaRe
 				Default:  booldefault.StaticBool(true),
 			},
 			"display_order": schema.Int64Attribute{
+				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "Server-assigned position (read-only in v0).",
+				MarkdownDescription: "Position on the page (ascending). Omitted, the server appends at the end.",
 			},
 		},
 	}
@@ -110,6 +111,9 @@ func (r *statuspageMetricResource) Create(ctx context.Context, req resource.Crea
 	}
 	if !plan.Suffix.IsNull() && !plan.Suffix.IsUnknown() {
 		in.Suffix = plan.Suffix.ValueStringPointer()
+	}
+	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
+		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
 	}
 
 	created, err := r.client.CreateMetric(ctx, plan.StatuspageID.ValueString(), in)
@@ -157,6 +161,9 @@ func (r *statuspageMetricResource) Update(ctx context.Context, req resource.Upda
 	}
 	if !plan.Suffix.IsNull() && !plan.Suffix.IsUnknown() {
 		in.Suffix = plan.Suffix.ValueStringPointer()
+	}
+	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
+		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
 	}
 
 	updated, err := r.client.UpdateMetric(ctx, state.StatuspageID.ValueString(), state.ID.ValueString(), in)

@@ -21,11 +21,12 @@ type Metric struct {
 // MetricInput: component_id is sent WITHOUT omitempty on purpose — detaching
 // a chart from its component requires an explicit null.
 type MetricInput struct {
-	Name        string  `json:"name,omitempty"`
-	DisplayType string  `json:"display_type,omitempty"`
-	Suffix      *string `json:"suffix,omitempty"`
-	ComponentID *string `json:"component_id"`
-	IsVisible   *bool   `json:"is_visible,omitempty"`
+	Name         string  `json:"name,omitempty"`
+	DisplayType  string  `json:"display_type,omitempty"`
+	Suffix       *string `json:"suffix,omitempty"`
+	ComponentID  *string `json:"component_id"`
+	IsVisible    *bool   `json:"is_visible,omitempty"`
+	DisplayOrder *int64  `json:"display_order,omitempty"`
 }
 
 // Series mirrors the StatuspageSeriesResource echo.
@@ -43,10 +44,11 @@ type Series struct {
 
 // SeriesInput: color without omitempty — an explicit null resets it.
 type SeriesInput struct {
-	Name       string  `json:"name,omitempty"`
-	ServiceID  string  `json:"service_id,omitempty"`
-	MetricType string  `json:"metric_type,omitempty"`
-	Color      *string `json:"color"`
+	Name         string  `json:"name,omitempty"`
+	ServiceID    string  `json:"service_id,omitempty"`
+	MetricType   string  `json:"metric_type,omitempty"`
+	Color        *string `json:"color"`
+	DisplayOrder *int64  `json:"display_order,omitempty"`
 }
 
 func (c *Client) CreateMetric(ctx context.Context, statuspageID string, in MetricInput) (*Metric, error) {

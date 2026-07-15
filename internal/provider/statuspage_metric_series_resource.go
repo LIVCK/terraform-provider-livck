@@ -76,7 +76,9 @@ func (r *statuspageMetricSeriesResource) Schema(_ context.Context, _ resource.Sc
 				MarkdownDescription: "Hex color (`#RRGGBB`). Omitted, the theme default applies.",
 			},
 			"display_order": schema.Int64Attribute{
-				Computed: true,
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Position within the chart (ascending). Omitted, the server appends at the end.",
 			},
 		},
 	}
@@ -94,10 +96,11 @@ func (r *statuspageMetricSeriesResource) Create(ctx context.Context, req resourc
 	}
 
 	created, err := r.client.CreateSeries(ctx, plan.StatuspageID.ValueString(), plan.MetricID.ValueString(), client.SeriesInput{
-		Name:       plan.Name.ValueString(),
-		ServiceID:  plan.ServiceID.ValueString(),
-		MetricType: plan.MetricType.ValueString(),
-		Color:      plan.Color.ValueStringPointer(),
+		Name:         plan.Name.ValueString(),
+		ServiceID:    plan.ServiceID.ValueString(),
+		MetricType:   plan.MetricType.ValueString(),
+		Color:        plan.Color.ValueStringPointer(),
+		DisplayOrder: displayOrderPtr(plan.DisplayOrder),
 	})
 	if err != nil {
 		addAPIError(&resp.Diagnostics, "Creating the series failed", err)
@@ -136,10 +139,11 @@ func (r *statuspageMetricSeriesResource) Update(ctx context.Context, req resourc
 	}
 
 	updated, err := r.client.UpdateSeries(ctx, state.StatuspageID.ValueString(), state.MetricID.ValueString(), state.ID.ValueString(), client.SeriesInput{
-		Name:       plan.Name.ValueString(),
-		ServiceID:  plan.ServiceID.ValueString(),
-		MetricType: plan.MetricType.ValueString(),
-		Color:      plan.Color.ValueStringPointer(),
+		Name:         plan.Name.ValueString(),
+		ServiceID:    plan.ServiceID.ValueString(),
+		MetricType:   plan.MetricType.ValueString(),
+		Color:        plan.Color.ValueStringPointer(),
+		DisplayOrder: displayOrderPtr(plan.DisplayOrder),
 	})
 	if err != nil {
 		addAPIError(&resp.Diagnostics, "Updating the series failed", err)
@@ -193,4 +197,11 @@ func seriesModelFromAPI(remote *client.Series, statuspageID, metricID string) *s
 	}
 
 	return m
+}
+
+func displayOrderPtr(v types.Int64) *int64 {
+	if v.IsNull() || v.IsUnknown() {
+		return nil
+	}
+	return v.ValueInt64Pointer()
 }
