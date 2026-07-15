@@ -86,8 +86,9 @@ provider_installation {
 
 - Translatable fields (`name`, `title`, …) are managed as plain strings in the
   organization's default locale; multi-locale content stays console-managed.
-- Component ordering is server-assigned (creation order); drag-reordering stays
-  in the console.
+- Component/metric/series ordering is declarative via `display_order`
+  (10/20/30 convention; omitted items append at the end). Component nesting
+  is limited to 5 levels server-side — deeper attempts fail with a clear 422.
 - Status page access control (password / email whitelist), branding and layout
   stay console-managed.
 - Secrets inside `livck_service.settings.config` (header values, auth
