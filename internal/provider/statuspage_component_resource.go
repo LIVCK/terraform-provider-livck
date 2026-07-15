@@ -27,16 +27,18 @@ type statuspageComponentResource struct {
 }
 
 type componentModel struct {
-	ID           types.String `tfsdk:"id"`
-	StatuspageID types.String `tfsdk:"statuspage_id"`
-	Name         types.String `tfsdk:"name"`
-	Description  types.String `tfsdk:"description"`
-	ServiceID    types.String `tfsdk:"service_id"`
-	ParentID     types.String `tfsdk:"parent_id"`
-	IsGroup      types.Bool   `tfsdk:"is_group"`
-	IsVisible    types.Bool   `tfsdk:"is_visible"`
-	DisplayOrder types.Int64  `tfsdk:"display_order"`
-	Status       types.String `tfsdk:"status"`
+	ID             types.String `tfsdk:"id"`
+	StatuspageID   types.String `tfsdk:"statuspage_id"`
+	Name           types.String `tfsdk:"name"`
+	Description    types.String `tfsdk:"description"`
+	ServiceID      types.String `tfsdk:"service_id"`
+	ParentID       types.String `tfsdk:"parent_id"`
+	IsGroup        types.Bool   `tfsdk:"is_group"`
+	IsVisible      types.Bool   `tfsdk:"is_visible"`
+	DisplayOrder   types.Int64  `tfsdk:"display_order"`
+	Status         types.String `tfsdk:"status"`
+	SyncTagID      types.String `tfsdk:"sync_tag_id"`
+	SyncNewVisible types.Bool   `tfsdk:"sync_new_visible"`
 }
 
 func NewStatuspageComponentResource() resource.Resource { return &statuspageComponentResource{} }
@@ -95,6 +97,22 @@ func (r *statuspageComponentResource) Schema(_ context.Context, _ resource.Schem
 				Computed:            true,
 				MarkdownDescription: "Live component status (runtime state driven by incidents/checks, read-only).",
 			},
+			"sync_tag_id": schema.StringAttribute{
+				Optional: true,
+				MarkdownDescription: "Tag id (`livck_tag.….id`) that turns this GROUP into a tag-synced " +
+					"group: every service carrying the tag materializes as a machine-managed child " +
+					"server-side. Do NOT declare those children in Terraform — they are owned by the " +
+					"sync (`is_sync_managed` in the API) and follow tagging changes automatically. " +
+					"Only valid on groups (`is_group = true`); unsetting it releases the group and its " +
+					"children into normal, manually-managed components.",
+			},
+			"sync_new_visible": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(true),
+				MarkdownDescription: "Whether services that later join the sync tag appear as VISIBLE " +
+					"children (default `true`). Only meaningful together with `sync_tag_id`.",
+			},
 		},
 	}
 }
@@ -111,9 +129,11 @@ func (r *statuspageComponentResource) Create(ctx context.Context, req resource.C
 	}
 
 	in := client.ComponentInput{
-		Name:      plan.Name.ValueString(),
-		IsGroup:   plan.IsGroup.ValueBoolPointer(),
-		IsVisible: plan.IsVisible.ValueBoolPointer(),
+		Name:           plan.Name.ValueString(),
+		IsGroup:        plan.IsGroup.ValueBoolPointer(),
+		IsVisible:      plan.IsVisible.ValueBoolPointer(),
+		SyncTagID:      plan.SyncTagID.ValueStringPointer(),
+		SyncNewVisible: plan.SyncNewVisible.ValueBoolPointer(),
 	}
 	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
 		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
@@ -169,10 +189,13 @@ func (r *statuspageComponentResource) Update(ctx context.Context, req resource.U
 		Name:      plan.Name.ValueString(),
 		IsGroup:   plan.IsGroup.ValueBoolPointer(),
 		IsVisible: plan.IsVisible.ValueBoolPointer(),
-		// null clears the link server-side; omitted keeps it — send explicitly.
-		Description: plan.Description.ValueStringPointer(),
-		ServiceID:   plan.ServiceID.ValueStringPointer(),
-		ParentID:    plan.ParentID.ValueStringPointer(),
+		// null clears the link server-side; omitted keeps it — send explicitly
+		// (sync_tag_id: null unsyncs the group the same way).
+		Description:    plan.Description.ValueStringPointer(),
+		ServiceID:      plan.ServiceID.ValueStringPointer(),
+		ParentID:       plan.ParentID.ValueStringPointer(),
+		SyncTagID:      plan.SyncTagID.ValueStringPointer(),
+		SyncNewVisible: plan.SyncNewVisible.ValueBoolPointer(),
 	}
 	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
 		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
@@ -217,15 +240,17 @@ func (r *statuspageComponentResource) ImportState(ctx context.Context, req resou
 
 func componentModelFromAPI(remote *client.Component, statuspageID string) *componentModel {
 	m := &componentModel{
-		ID:           types.StringValue(remote.ID),
-		StatuspageID: types.StringValue(statuspageID),
-		Name:         types.StringValue(remote.Name),
-		Description:  types.StringPointerValue(remote.Description),
-		ParentID:     types.StringPointerValue(remote.ParentID),
-		IsGroup:      types.BoolValue(remote.IsGroup),
-		IsVisible:    types.BoolValue(remote.IsVisible),
-		DisplayOrder: types.Int64Value(remote.DisplayOrder),
-		Status:       types.StringValue(remote.Status),
+		ID:             types.StringValue(remote.ID),
+		StatuspageID:   types.StringValue(statuspageID),
+		Name:           types.StringValue(remote.Name),
+		Description:    types.StringPointerValue(remote.Description),
+		ParentID:       types.StringPointerValue(remote.ParentID),
+		IsGroup:        types.BoolValue(remote.IsGroup),
+		IsVisible:      types.BoolValue(remote.IsVisible),
+		DisplayOrder:   types.Int64Value(remote.DisplayOrder),
+		Status:         types.StringValue(remote.Status),
+		SyncTagID:      types.StringPointerValue(remote.SyncTagID),
+		SyncNewVisible: types.BoolValue(remote.SyncNewVisible),
 	}
 
 	if remote.Service != nil {

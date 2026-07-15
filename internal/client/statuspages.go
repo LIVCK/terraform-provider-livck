@@ -23,15 +23,18 @@ type StatuspageInput struct {
 
 // Component mirrors the StatuspageComponentResource echo.
 type Component struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	Description  *string `json:"description"`
-	Status       string  `json:"status"`
-	IsGroup      bool    `json:"is_group"`
-	IsVisible    bool    `json:"is_visible"`
-	DisplayOrder int64   `json:"display_order"`
-	ParentID     *string `json:"parent_id"`
-	Service      *struct {
+	ID             string  `json:"id"`
+	Name           string  `json:"name"`
+	Description    *string `json:"description"`
+	Status         string  `json:"status"`
+	IsGroup        bool    `json:"is_group"`
+	IsVisible      bool    `json:"is_visible"`
+	DisplayOrder   int64   `json:"display_order"`
+	ParentID       *string `json:"parent_id"`
+	SyncTagID      *string `json:"sync_tag_id"`
+	SyncNewVisible bool    `json:"sync_new_visible"`
+	IsSyncManaged  bool    `json:"is_sync_managed"`
+	Service        *struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	} `json:"service"`
@@ -41,13 +44,15 @@ type Component struct {
 // on purpose — clearing a link (re-parenting to root, unlinking a service)
 // requires an explicit null; an omitted key means "keep" server-side.
 type ComponentInput struct {
-	Name         string  `json:"name,omitempty"`
-	Description  *string `json:"description"`
-	ServiceID    *string `json:"service_id"`
-	ParentID     *string `json:"parent_id"`
-	IsGroup      *bool   `json:"is_group,omitempty"`
-	IsVisible    *bool   `json:"is_visible,omitempty"`
-	DisplayOrder *int64  `json:"display_order,omitempty"`
+	Name           string  `json:"name,omitempty"`
+	Description    *string `json:"description"`
+	ServiceID      *string `json:"service_id"`
+	ParentID       *string `json:"parent_id"`
+	IsGroup        *bool   `json:"is_group,omitempty"`
+	IsVisible      *bool   `json:"is_visible,omitempty"`
+	DisplayOrder   *int64  `json:"display_order,omitempty"`
+	SyncTagID      *string `json:"sync_tag_id"`
+	SyncNewVisible *bool   `json:"sync_new_visible,omitempty"`
 }
 
 func (c *Client) CreateStatuspage(ctx context.Context, in StatuspageInput) (*Statuspage, error) {

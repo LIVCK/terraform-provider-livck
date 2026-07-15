@@ -51,7 +51,7 @@ export LIVCK_API_TOKEN="lvk_..."
 
 | Type | Name |
 |---|---|
-| Resource | `livck_service`, `livck_statuspage`, `livck_statuspage_component`, `livck_statuspage_metric`, `livck_statuspage_metric_series`, `livck_maintenance` |
+| Resource | `livck_service`, `livck_statuspage`, `livck_statuspage_component`, `livck_statuspage_metric`, `livck_statuspage_metric_series`, `livck_maintenance`, `livck_tag` |
 | Data Source | `livck_probes`, `livck_check_types`, `livck_statuspage` |
 
 Full documentation lives in [`docs/`](./docs) (generated via `tfplugindocs`,
@@ -95,6 +95,8 @@ provider_installation {
   credentials) are write-only; after `terraform import` they must be re-applied.
 - `livck_maintenance` notify flags have no read echo: after `terraform import`
   the first apply is a harmless no-op write that pins them to the declared values.
+- Children of a tag-synced group (`sync_tag_id`) are machine-managed server-side —
+  never declare them in Terraform; manage membership by tagging services instead.
 
 ## Releasing
 

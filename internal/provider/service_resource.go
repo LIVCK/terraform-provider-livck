@@ -36,6 +36,7 @@ type serviceModel struct {
 	Target    types.String   `tfsdk:"target"`
 	Paused    types.Bool     `tfsdk:"paused"`
 	Status    types.String   `tfsdk:"status"`
+	Tags      types.Set      `tfsdk:"tags"`
 	Settings  *settingsModel `tfsdk:"settings"`
 }
 
@@ -91,6 +92,15 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"status": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Live monitoring status (runtime state, read-only).",
+			},
+			"tags": schema.SetAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				MarkdownDescription: "Tag ids (`livck_tag.….id`) attached to this service. Set, the " +
+					"assignment is fully managed: the list REPLACES whatever is attached (an empty set " +
+					"clears it). Omitted (null), tags stay unmanaged and console-side tagging is left " +
+					"untouched. Services carrying a tag referenced by a tag-synced statuspage group " +
+					"appear on that group automatically.",
 			},
 			"settings": schema.SingleNestedAttribute{
 				Optional: true,
@@ -156,6 +166,10 @@ func (r *serviceResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 	in.Settings = settingsIn
+	in.Tags = tagIDsFromSet(ctx, plan.Tags, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	created, err := r.client.CreateService(ctx, in)
 	if err != nil {
@@ -216,6 +230,10 @@ func (r *serviceResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 	in.Settings = settingsIn
+	in.Tags = tagIDsFromSet(ctx, plan.Tags, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	updated, err := r.client.UpdateService(ctx, state.ID.ValueString(), in)
 	if err != nil {
@@ -301,6 +319,20 @@ func serviceModelFromAPI(ctx context.Context, remote *client.Service, prior *ser
 		Status:    types.StringValue(remote.Status),
 	}
 
+	// tags: null in config means "unmanaged" — echoing console-side tags into
+	// the state would surface them as perpetual drift, so null stays null.
+	if prior == nil || prior.Tags.IsNull() {
+		m.Tags = types.SetNull(types.StringType)
+	} else {
+		ids := make([]string, 0, len(remote.Tags))
+		for _, t := range remote.Tags {
+			ids = append(ids, t.ID)
+		}
+		set, d := types.SetValueFrom(ctx, types.StringType, ids)
+		diags.Append(d...)
+		m.Tags = set
+	}
+
 	if remote.Settings == nil {
 		m.Settings = nil
 		return m, diags
@@ -339,4 +371,18 @@ func serviceModelFromAPI(ctx context.Context, remote *client.Service, prior *ser
 	m.Settings = s
 
 	return m, diags
+}
+
+// tagIDsFromSet turns the plan's tags set into the API input: nil when the
+// attribute is null/unknown (assignment unmanaged), a pointer otherwise —
+// including a pointer to an EMPTY slice, which explicitly clears the tags.
+func tagIDsFromSet(ctx context.Context, set types.Set, diags *diag.Diagnostics) *[]string {
+	if set.IsNull() || set.IsUnknown() {
+		return nil
+	}
+
+	ids := make([]string, 0, len(set.Elements()))
+	diags.Append(set.ElementsAs(ctx, &ids, false)...)
+
+	return &ids
 }

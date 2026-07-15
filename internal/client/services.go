@@ -16,6 +16,7 @@ type Service struct {
 	Status    string           `json:"status"`
 	IsPaused  bool             `json:"is_paused"`
 	Settings  *ServiceSettings `json:"settings"`
+	Tags      []Tag            `json:"tags"`
 }
 
 type ServiceSettings struct {
@@ -35,11 +36,14 @@ type ServiceSettingsInput struct {
 	Config          json.RawMessage `json:"config,omitempty"`
 }
 
+// ServiceInput.Tags is a *pointer* to a slice: nil means "don't touch the
+// assignment" (unmanaged), a non-nil empty slice sends tags: [] and clears it.
 type ServiceInput struct {
 	Name      string                `json:"name,omitempty"`
 	CheckType string                `json:"check_type,omitempty"`
 	Target    *string               `json:"target,omitempty"`
 	Settings  *ServiceSettingsInput `json:"settings,omitempty"`
+	Tags      *[]string             `json:"tags,omitempty"`
 }
 
 func (c *Client) CreateService(ctx context.Context, in ServiceInput) (*Service, error) {
