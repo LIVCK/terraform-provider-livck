@@ -36,7 +36,6 @@ resource "livck_statuspage_metric" "uptime" {
 ### Required
 
 - `display_type` (String) `line_chart` or `uptime_bars`.
-- `name` (String)
 - `statuspage_id` (String)
 
 ### Optional
@@ -44,7 +43,10 @@ resource "livck_statuspage_metric" "uptime" {
 - `component_id` (String) Public id of a component on the same page. Omitted, the chart renders standalone.
 - `display_order` (Number) Position on the page (ascending). Omitted, the server appends at the end.
 - `is_visible` (Boolean)
+- `name` (String) Single-language name. Exactly one of `name` and `name_translations` must be set.
+- `name_translations` (Map of String) Multilingual name as a `{locale = value}` map.
 - `suffix` (String) Unit suffix rendered after values (e.g. `ms`). The server stores an empty string when omitted.
+- `suffix_translations` (Map of String) Multilingual suffix as a `{locale = value}` map.
 
 ### Read-Only
 

@@ -8,33 +8,37 @@ import (
 
 // Statuspage mirrors the StatuspageResource echo.
 type Statuspage struct {
-	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	Slug        string      `json:"slug"`
-	IsPublished bool        `json:"is_published"`
-	AccessType  string      `json:"access_type"`
-	Components  []Component `json:"components"`
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	NameTranslations map[string]string `json:"name_translations"`
+	Slug             string            `json:"slug"`
+	IsPublished      bool              `json:"is_published"`
+	AccessType       string            `json:"access_type"`
+	Components       []Component       `json:"components"`
 }
 
+// Translatable fields are `any`: a plain string or a {locale: value} map.
 type StatuspageInput struct {
-	Name string  `json:"name,omitempty"`
+	Name any     `json:"name,omitempty"`
 	Slug *string `json:"slug,omitempty"`
 }
 
 // Component mirrors the StatuspageComponentResource echo.
 type Component struct {
-	ID             string  `json:"id"`
-	Name           string  `json:"name"`
-	Description    *string `json:"description"`
-	Status         string  `json:"status"`
-	IsGroup        bool    `json:"is_group"`
-	IsVisible      bool    `json:"is_visible"`
-	DisplayOrder   int64   `json:"display_order"`
-	ParentID       *string `json:"parent_id"`
-	SyncTagID      *string `json:"sync_tag_id"`
-	SyncNewVisible bool    `json:"sync_new_visible"`
-	IsSyncManaged  bool    `json:"is_sync_managed"`
-	Service        *struct {
+	ID                      string            `json:"id"`
+	Name                    string            `json:"name"`
+	NameTranslations        map[string]string `json:"name_translations"`
+	Description             *string           `json:"description"`
+	DescriptionTranslations map[string]string `json:"description_translations"`
+	Status                  string            `json:"status"`
+	IsGroup                 bool              `json:"is_group"`
+	IsVisible               bool              `json:"is_visible"`
+	DisplayOrder            int64             `json:"display_order"`
+	ParentID                *string           `json:"parent_id"`
+	SyncTagID               *string           `json:"sync_tag_id"`
+	SyncNewVisible          bool              `json:"sync_new_visible"`
+	IsSyncManaged           bool              `json:"is_sync_managed"`
+	Service                 *struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	} `json:"service"`
@@ -44,8 +48,8 @@ type Component struct {
 // on purpose — clearing a link (re-parenting to root, unlinking a service)
 // requires an explicit null; an omitted key means "keep" server-side.
 type ComponentInput struct {
-	Name           string  `json:"name,omitempty"`
-	Description    *string `json:"description"`
+	Name           any     `json:"name,omitempty"`
+	Description    any     `json:"description"`
 	ServiceID      *string `json:"service_id"`
 	ParentID       *string `json:"parent_id"`
 	IsGroup        *bool   `json:"is_group,omitempty"`

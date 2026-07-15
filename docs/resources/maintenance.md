@@ -30,7 +30,6 @@ resource "livck_maintenance" "db_upgrade" {
 
 - `scheduled_end` (String) RFC3339 timestamp; must be after `scheduled_start`.
 - `scheduled_start` (String) RFC3339 timestamp. Compared semantically — timezone formatting differences do not produce diffs.
-- `title` (String)
 
 ### Optional
 
@@ -42,6 +41,8 @@ resource "livck_maintenance" "db_upgrade" {
 - `notify_start` (Boolean)
 - `service_ids` (Set of String) Affected services (public ids).
 - `statuspage_ids` (Set of String) Status pages announcing this window (public ids).
+- `title` (String) Single-language title. Exactly one of `title` and `title_translations` must be set.
+- `title_translations` (Map of String) Multilingual title as a `{locale = value}` map.
 
 ### Read-Only
 

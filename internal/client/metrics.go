@@ -8,22 +8,24 @@ import (
 
 // Metric mirrors the StatuspageMetricResource echo.
 type Metric struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	DisplayType  string   `json:"display_type"`
-	Suffix       string   `json:"suffix"`
-	ComponentID  *string  `json:"component_id"`
-	IsVisible    bool     `json:"is_visible"`
-	DisplayOrder int64    `json:"display_order"`
-	Series       []Series `json:"series"`
+	ID                 string            `json:"id"`
+	Name               string            `json:"name"`
+	NameTranslations   map[string]string `json:"name_translations"`
+	DisplayType        string            `json:"display_type"`
+	Suffix             string            `json:"suffix"`
+	SuffixTranslations map[string]string `json:"suffix_translations"`
+	ComponentID        *string           `json:"component_id"`
+	IsVisible          bool              `json:"is_visible"`
+	DisplayOrder       int64             `json:"display_order"`
+	Series             []Series          `json:"series"`
 }
 
 // MetricInput: component_id is sent WITHOUT omitempty on purpose — detaching
 // a chart from its component requires an explicit null.
 type MetricInput struct {
-	Name         string  `json:"name,omitempty"`
+	Name         any     `json:"name,omitempty"`
 	DisplayType  string  `json:"display_type,omitempty"`
-	Suffix       *string `json:"suffix,omitempty"`
+	Suffix       any     `json:"suffix,omitempty"`
 	ComponentID  *string `json:"component_id"`
 	IsVisible    *bool   `json:"is_visible,omitempty"`
 	DisplayOrder *int64  `json:"display_order,omitempty"`

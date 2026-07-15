@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/hashicorp/terraform-plugin-framework-timetypes/timetypes"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/livck/terraform-provider-livck/internal/client"
 )
@@ -27,19 +29,20 @@ type maintenanceResource struct {
 }
 
 type maintenanceModel struct {
-	ID             types.String      `tfsdk:"id"`
-	Title          types.String      `tfsdk:"title"`
-	ScheduledStart timetypes.RFC3339 `tfsdk:"scheduled_start"`
-	ScheduledEnd   timetypes.RFC3339 `tfsdk:"scheduled_end"`
-	ServiceIDs     types.Set         `tfsdk:"service_ids"`
-	StatuspageIDs  types.Set         `tfsdk:"statuspage_ids"`
-	AutoStart      types.Bool        `tfsdk:"auto_start"`
-	AutoComplete   types.Bool        `tfsdk:"auto_complete"`
-	Notify24h      types.Bool        `tfsdk:"notify_24h"`
-	Notify1h       types.Bool        `tfsdk:"notify_1h"`
-	NotifyStart    types.Bool        `tfsdk:"notify_start"`
-	NotifyComplete types.Bool        `tfsdk:"notify_complete"`
-	Status         types.String      `tfsdk:"status"`
+	ID                types.String      `tfsdk:"id"`
+	Title             types.String      `tfsdk:"title"`
+	TitleTranslations types.Map         `tfsdk:"title_translations"`
+	ScheduledStart    timetypes.RFC3339 `tfsdk:"scheduled_start"`
+	ScheduledEnd      timetypes.RFC3339 `tfsdk:"scheduled_end"`
+	ServiceIDs        types.Set         `tfsdk:"service_ids"`
+	StatuspageIDs     types.Set         `tfsdk:"statuspage_ids"`
+	AutoStart         types.Bool        `tfsdk:"auto_start"`
+	AutoComplete      types.Bool        `tfsdk:"auto_complete"`
+	Notify24h         types.Bool        `tfsdk:"notify_24h"`
+	Notify1h          types.Bool        `tfsdk:"notify_1h"`
+	NotifyStart       types.Bool        `tfsdk:"notify_start"`
+	NotifyComplete    types.Bool        `tfsdk:"notify_complete"`
+	Status            types.String      `tfsdk:"status"`
 }
 
 func NewMaintenanceResource() resource.Resource { return &maintenanceResource{} }
@@ -59,7 +62,16 @@ func (r *maintenanceResource) Schema(_ context.Context, _ resource.SchemaRequest
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"title": schema.StringAttribute{
-				Required: true,
+				Optional:            true,
+				MarkdownDescription: "Single-language title. Exactly one of `title` and `title_translations` must be set.",
+				Validators: []validator.String{
+					stringvalidator.ExactlyOneOf(path.MatchRoot("title"), path.MatchRoot("title_translations")),
+				},
+			},
+			"title_translations": schema.MapAttribute{
+				ElementType:         types.StringType,
+				Optional:            true,
+				MarkdownDescription: "Multilingual title as a `{locale = value}` map.",
 			},
 			"scheduled_start": schema.StringAttribute{
 				CustomType:          timetypes.RFC3339Type{},
@@ -209,7 +221,7 @@ func maintenanceInputFromModel(ctx context.Context, m *maintenanceModel) (client
 	var diags diag.Diagnostics
 
 	in := client.MaintenanceInput{
-		Title:          m.Title.ValueString(),
+		Title:          translatableInput(ctx, m.Title, m.TitleTranslations, &diags),
 		ScheduledStart: m.ScheduledStart.ValueString(),
 		ScheduledEnd:   m.ScheduledEnd.ValueString(),
 	}
@@ -246,7 +258,6 @@ func maintenanceModelFromAPI(ctx context.Context, remote *client.Maintenance, pr
 
 	m := &maintenanceModel{
 		ID:             types.StringValue(remote.ID),
-		Title:          types.StringValue(remote.Title),
 		ScheduledStart: start,
 		ScheduledEnd:   end,
 		AutoStart:      types.BoolValue(remote.AutoStart),
@@ -257,6 +268,8 @@ func maintenanceModelFromAPI(ctx context.Context, remote *client.Maintenance, pr
 		NotifyComplete: prior.NotifyComplete,
 		Status:         types.StringValue(remote.Status),
 	}
+
+	m.Title, m.TitleTranslations = translatableFromAPI(ctx, remote.Title, remote.TitleTranslations, prior.TitleTranslations, &diags)
 
 	// service/statuspage linkage: only track it when the config manages it —
 	// a null set stays null (the server may add auto-detected services).

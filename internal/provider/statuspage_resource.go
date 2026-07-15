@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/livck/terraform-provider-livck/internal/client"
 )
@@ -24,11 +27,12 @@ type statuspageResource struct {
 }
 
 type statuspageModel struct {
-	ID         types.String `tfsdk:"id"`
-	Name       types.String `tfsdk:"name"`
-	Slug       types.String `tfsdk:"slug"`
-	Published  types.Bool   `tfsdk:"published"`
-	AccessType types.String `tfsdk:"access_type"`
+	ID               types.String `tfsdk:"id"`
+	Name             types.String `tfsdk:"name"`
+	NameTranslations types.Map    `tfsdk:"name_translations"`
+	Slug             types.String `tfsdk:"slug"`
+	Published        types.Bool   `tfsdk:"published"`
+	AccessType       types.String `tfsdk:"access_type"`
 }
 
 func NewStatuspageResource() resource.Resource { return &statuspageResource{} }
@@ -47,7 +51,16 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"name": schema.StringAttribute{
-				Required: true,
+				Optional:            true,
+				MarkdownDescription: "Single-language name. Exactly one of `name` and `name_translations` must be set.",
+				Validators: []validator.String{
+					stringvalidator.ExactlyOneOf(path.MatchRoot("name"), path.MatchRoot("name_translations")),
+				},
+			},
+			"name_translations": schema.MapAttribute{
+				ElementType:         types.StringType,
+				Optional:            true,
+				MarkdownDescription: "Multilingual name as a `{locale = value}` map, e.g. `{ de = \"Systemstatus\", en = \"System Status\" }`.",
 			},
 			"slug": schema.StringAttribute{
 				Optional: true,
@@ -84,9 +97,12 @@ func (r *statuspageResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	in := client.StatuspageInput{Name: plan.Name.ValueString()}
+	in := client.StatuspageInput{Name: translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics)}
 	if !plan.Slug.IsNull() && !plan.Slug.IsUnknown() {
 		in.Slug = plan.Slug.ValueStringPointer()
+	}
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	created, err := r.client.CreateStatuspage(ctx, in)
@@ -106,7 +122,7 @@ func (r *statuspageResource) Create(ctx context.Context, req resource.CreateRequ
 		}
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, statuspageModelFromAPI(created))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, statuspageModelFromAPI(ctx, created, &plan, &resp.Diagnostics))...)
 }
 
 func (r *statuspageResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -126,7 +142,7 @@ func (r *statuspageResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, statuspageModelFromAPI(remote))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, statuspageModelFromAPI(ctx, remote, &state, &resp.Diagnostics))...)
 }
 
 func (r *statuspageResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -137,7 +153,10 @@ func (r *statuspageResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	in := client.StatuspageInput{Name: plan.Name.ValueString()}
+	in := client.StatuspageInput{Name: translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics)}
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	if !plan.Slug.IsNull() && !plan.Slug.IsUnknown() {
 		in.Slug = plan.Slug.ValueStringPointer()
 	}
@@ -156,7 +175,7 @@ func (r *statuspageResource) Update(ctx context.Context, req resource.UpdateRequ
 		}
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, statuspageModelFromAPI(updated))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, statuspageModelFromAPI(ctx, updated, &plan, &resp.Diagnostics))...)
 }
 
 func (r *statuspageResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -175,12 +194,19 @@ func (r *statuspageResource) ImportState(ctx context.Context, req resource.Impor
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func statuspageModelFromAPI(remote *client.Statuspage) *statuspageModel {
-	return &statuspageModel{
+func statuspageModelFromAPI(ctx context.Context, remote *client.Statuspage, prior *statuspageModel, diags *diag.Diagnostics) *statuspageModel {
+	m := &statuspageModel{
 		ID:         types.StringValue(remote.ID),
-		Name:       types.StringValue(remote.Name),
 		Slug:       types.StringValue(remote.Slug),
 		Published:  types.BoolValue(remote.IsPublished),
 		AccessType: types.StringValue(remote.AccessType),
 	}
+
+	priorNames := types.MapNull(types.StringType)
+	if prior != nil {
+		priorNames = prior.NameTranslations
+	}
+	m.Name, m.NameTranslations = translatableFromAPI(ctx, remote.Name, remote.NameTranslations, priorNames, diags)
+
+	return m
 }

@@ -8,14 +8,15 @@ import (
 
 // Maintenance mirrors the MaintenanceResource echo.
 type Maintenance struct {
-	ID             string `json:"id"`
-	Title          string `json:"title"`
-	Status         string `json:"status"`
-	ScheduledStart string `json:"scheduled_start"`
-	ScheduledEnd   string `json:"scheduled_end"`
-	AutoStart      bool   `json:"auto_start"`
-	AutoComplete   bool   `json:"auto_complete"`
-	Services       []struct {
+	ID                string            `json:"id"`
+	Title             string            `json:"title"`
+	TitleTranslations map[string]string `json:"title_translations"`
+	Status            string            `json:"status"`
+	ScheduledStart    string            `json:"scheduled_start"`
+	ScheduledEnd      string            `json:"scheduled_end"`
+	AutoStart         bool              `json:"auto_start"`
+	AutoComplete      bool              `json:"auto_complete"`
+	Services          []struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	} `json:"services"`
@@ -26,7 +27,7 @@ type Maintenance struct {
 }
 
 type MaintenanceInput struct {
-	Title          string   `json:"title,omitempty"`
+	Title          any      `json:"title,omitempty"`
 	ScheduledStart string   `json:"scheduled_start,omitempty"`
 	ScheduledEnd   string   `json:"scheduled_end,omitempty"`
 	ServiceIDs     []string `json:"service_ids,omitempty"`

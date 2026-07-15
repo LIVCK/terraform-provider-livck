@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -29,14 +30,16 @@ type statuspageMetricResource struct {
 }
 
 type metricModel struct {
-	ID           types.String `tfsdk:"id"`
-	StatuspageID types.String `tfsdk:"statuspage_id"`
-	Name         types.String `tfsdk:"name"`
-	DisplayType  types.String `tfsdk:"display_type"`
-	Suffix       types.String `tfsdk:"suffix"`
-	ComponentID  types.String `tfsdk:"component_id"`
-	IsVisible    types.Bool   `tfsdk:"is_visible"`
-	DisplayOrder types.Int64  `tfsdk:"display_order"`
+	ID                 types.String `tfsdk:"id"`
+	StatuspageID       types.String `tfsdk:"statuspage_id"`
+	Name               types.String `tfsdk:"name"`
+	NameTranslations   types.Map    `tfsdk:"name_translations"`
+	DisplayType        types.String `tfsdk:"display_type"`
+	Suffix             types.String `tfsdk:"suffix"`
+	SuffixTranslations types.Map    `tfsdk:"suffix_translations"`
+	ComponentID        types.String `tfsdk:"component_id"`
+	IsVisible          types.Bool   `tfsdk:"is_visible"`
+	DisplayOrder       types.Int64  `tfsdk:"display_order"`
 }
 
 func NewStatuspageMetricResource() resource.Resource { return &statuspageMetricResource{} }
@@ -60,7 +63,16 @@ func (r *statuspageMetricResource) Schema(_ context.Context, _ resource.SchemaRe
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"name": schema.StringAttribute{
-				Required: true,
+				Optional:            true,
+				MarkdownDescription: "Single-language name. Exactly one of `name` and `name_translations` must be set.",
+				Validators: []validator.String{
+					stringvalidator.ExactlyOneOf(path.MatchRoot("name"), path.MatchRoot("name_translations")),
+				},
+			},
+			"name_translations": schema.MapAttribute{
+				ElementType:         types.StringType,
+				Optional:            true,
+				MarkdownDescription: "Multilingual name as a `{locale = value}` map.",
 			},
 			"display_type": schema.StringAttribute{
 				Required:            true,
@@ -73,6 +85,14 @@ func (r *statuspageMetricResource) Schema(_ context.Context, _ resource.SchemaRe
 				Optional:            true,
 				Computed:            true,
 				MarkdownDescription: "Unit suffix rendered after values (e.g. `ms`). The server stores an empty string when omitted.",
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(path.MatchRoot("suffix_translations")),
+				},
+			},
+			"suffix_translations": schema.MapAttribute{
+				ElementType:         types.StringType,
+				Optional:            true,
+				MarkdownDescription: "Multilingual suffix as a `{locale = value}` map.",
 			},
 			"component_id": schema.StringAttribute{
 				Optional:            true,
@@ -104,13 +124,14 @@ func (r *statuspageMetricResource) Create(ctx context.Context, req resource.Crea
 	}
 
 	in := client.MetricInput{
-		Name:        plan.Name.ValueString(),
+		Name:        translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics),
 		DisplayType: plan.DisplayType.ValueString(),
 		IsVisible:   plan.IsVisible.ValueBoolPointer(),
 		ComponentID: plan.ComponentID.ValueStringPointer(),
 	}
-	if !plan.Suffix.IsNull() && !plan.Suffix.IsUnknown() {
-		in.Suffix = plan.Suffix.ValueStringPointer()
+	in.Suffix = translatableInput(ctx, plan.Suffix, plan.SuffixTranslations, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
 		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
@@ -122,7 +143,7 @@ func (r *statuspageMetricResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, metricModelFromAPI(created, plan.StatuspageID.ValueString()))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, metricModelFromAPI(ctx, created, plan.StatuspageID.ValueString(), &plan, &resp.Diagnostics))...)
 }
 
 func (r *statuspageMetricResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -142,7 +163,7 @@ func (r *statuspageMetricResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, metricModelFromAPI(remote, state.StatuspageID.ValueString()))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, metricModelFromAPI(ctx, remote, state.StatuspageID.ValueString(), &state, &resp.Diagnostics))...)
 }
 
 func (r *statuspageMetricResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -154,13 +175,14 @@ func (r *statuspageMetricResource) Update(ctx context.Context, req resource.Upda
 	}
 
 	in := client.MetricInput{
-		Name:        plan.Name.ValueString(),
+		Name:        translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics),
 		DisplayType: plan.DisplayType.ValueString(),
 		IsVisible:   plan.IsVisible.ValueBoolPointer(),
 		ComponentID: plan.ComponentID.ValueStringPointer(),
 	}
-	if !plan.Suffix.IsNull() && !plan.Suffix.IsUnknown() {
-		in.Suffix = plan.Suffix.ValueStringPointer()
+	in.Suffix = translatableInput(ctx, plan.Suffix, plan.SuffixTranslations, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
 		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
@@ -172,7 +194,7 @@ func (r *statuspageMetricResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, metricModelFromAPI(updated, state.StatuspageID.ValueString()))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, metricModelFromAPI(ctx, updated, state.StatuspageID.ValueString(), &plan, &resp.Diagnostics))...)
 }
 
 func (r *statuspageMetricResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -200,15 +222,22 @@ func (r *statuspageMetricResource) ImportState(ctx context.Context, req resource
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[1])...)
 }
 
-func metricModelFromAPI(remote *client.Metric, statuspageID string) *metricModel {
-	return &metricModel{
+func metricModelFromAPI(ctx context.Context, remote *client.Metric, statuspageID string, prior *metricModel, diags *diag.Diagnostics) *metricModel {
+	m := &metricModel{
 		ID:           types.StringValue(remote.ID),
 		StatuspageID: types.StringValue(statuspageID),
-		Name:         types.StringValue(remote.Name),
 		DisplayType:  types.StringValue(remote.DisplayType),
-		Suffix:       types.StringValue(remote.Suffix),
 		ComponentID:  types.StringPointerValue(remote.ComponentID),
 		IsVisible:    types.BoolValue(remote.IsVisible),
 		DisplayOrder: types.Int64Value(remote.DisplayOrder),
 	}
+
+	priorNames, priorSuffixes := types.MapNull(types.StringType), types.MapNull(types.StringType)
+	if prior != nil {
+		priorNames, priorSuffixes = prior.NameTranslations, prior.SuffixTranslations
+	}
+	m.Name, m.NameTranslations = translatableFromAPI(ctx, remote.Name, remote.NameTranslations, priorNames, diags)
+	m.Suffix, m.SuffixTranslations = translatableFromAPI(ctx, remote.Suffix, remote.SuffixTranslations, priorSuffixes, diags)
+
+	return m
 }

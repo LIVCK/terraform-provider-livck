@@ -32,15 +32,17 @@ resource "livck_statuspage_component" "website" {
 
 ### Required
 
-- `name` (String)
 - `statuspage_id` (String) The owning status page. Immutable — changing it replaces the component.
 
 ### Optional
 
 - `description` (String)
+- `description_translations` (Map of String) Multilingual description as a `{locale = value}` map.
 - `display_order` (Number) Position within the parent (ascending). Omitted, the server appends at the end. Set explicit values (e.g. 10, 20, 30) to manage ordering declaratively.
 - `is_group` (Boolean)
 - `is_visible` (Boolean)
+- `name` (String) Single-language name. Exactly one of `name` and `name_translations` must be set.
+- `name_translations` (Map of String) Multilingual name as a `{locale = value}` map.
 - `parent_id` (String) Public id of a group component on the same page.
 - `service_id` (String) Public id of a monitored service whose status drives this component.
 - `sync_new_visible` (Boolean) Whether services that later join the sync tag appear as VISIBLE children (default `true`). Only meaningful together with `sync_tag_id`.

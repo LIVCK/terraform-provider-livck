@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -27,18 +31,20 @@ type statuspageComponentResource struct {
 }
 
 type componentModel struct {
-	ID             types.String `tfsdk:"id"`
-	StatuspageID   types.String `tfsdk:"statuspage_id"`
-	Name           types.String `tfsdk:"name"`
-	Description    types.String `tfsdk:"description"`
-	ServiceID      types.String `tfsdk:"service_id"`
-	ParentID       types.String `tfsdk:"parent_id"`
-	IsGroup        types.Bool   `tfsdk:"is_group"`
-	IsVisible      types.Bool   `tfsdk:"is_visible"`
-	DisplayOrder   types.Int64  `tfsdk:"display_order"`
-	Status         types.String `tfsdk:"status"`
-	SyncTagID      types.String `tfsdk:"sync_tag_id"`
-	SyncNewVisible types.Bool   `tfsdk:"sync_new_visible"`
+	ID                      types.String `tfsdk:"id"`
+	StatuspageID            types.String `tfsdk:"statuspage_id"`
+	Name                    types.String `tfsdk:"name"`
+	NameTranslations        types.Map    `tfsdk:"name_translations"`
+	Description             types.String `tfsdk:"description"`
+	DescriptionTranslations types.Map    `tfsdk:"description_translations"`
+	ServiceID               types.String `tfsdk:"service_id"`
+	ParentID                types.String `tfsdk:"parent_id"`
+	IsGroup                 types.Bool   `tfsdk:"is_group"`
+	IsVisible               types.Bool   `tfsdk:"is_visible"`
+	DisplayOrder            types.Int64  `tfsdk:"display_order"`
+	Status                  types.String `tfsdk:"status"`
+	SyncTagID               types.String `tfsdk:"sync_tag_id"`
+	SyncNewVisible          types.Bool   `tfsdk:"sync_new_visible"`
 }
 
 func NewStatuspageComponentResource() resource.Resource { return &statuspageComponentResource{} }
@@ -63,10 +69,27 @@ func (r *statuspageComponentResource) Schema(_ context.Context, _ resource.Schem
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"name": schema.StringAttribute{
-				Required: true,
+				Optional:            true,
+				MarkdownDescription: "Single-language name. Exactly one of `name` and `name_translations` must be set.",
+				Validators: []validator.String{
+					stringvalidator.ExactlyOneOf(path.MatchRoot("name"), path.MatchRoot("name_translations")),
+				},
+			},
+			"name_translations": schema.MapAttribute{
+				ElementType:         types.StringType,
+				Optional:            true,
+				MarkdownDescription: "Multilingual name as a `{locale = value}` map.",
 			},
 			"description": schema.StringAttribute{
 				Optional: true,
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(path.MatchRoot("description_translations")),
+				},
+			},
+			"description_translations": schema.MapAttribute{
+				ElementType:         types.StringType,
+				Optional:            true,
+				MarkdownDescription: "Multilingual description as a `{locale = value}` map.",
 			},
 			"service_id": schema.StringAttribute{
 				Optional:            true,
@@ -129,7 +152,7 @@ func (r *statuspageComponentResource) Create(ctx context.Context, req resource.C
 	}
 
 	in := client.ComponentInput{
-		Name:           plan.Name.ValueString(),
+		Name:           translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics),
 		IsGroup:        plan.IsGroup.ValueBoolPointer(),
 		IsVisible:      plan.IsVisible.ValueBoolPointer(),
 		SyncTagID:      plan.SyncTagID.ValueStringPointer(),
@@ -138,8 +161,11 @@ func (r *statuspageComponentResource) Create(ctx context.Context, req resource.C
 	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
 		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
 	}
-	if !plan.Description.IsNull() {
-		in.Description = plan.Description.ValueStringPointer()
+	if desc := translatableInput(ctx, plan.Description, plan.DescriptionTranslations, &resp.Diagnostics); desc != nil {
+		in.Description = desc
+	}
+	if resp.Diagnostics.HasError() {
+		return
 	}
 	if !plan.ServiceID.IsNull() {
 		in.ServiceID = plan.ServiceID.ValueStringPointer()
@@ -154,7 +180,7 @@ func (r *statuspageComponentResource) Create(ctx context.Context, req resource.C
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, componentModelFromAPI(created, plan.StatuspageID.ValueString()))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, componentModelFromAPI(ctx, created, plan.StatuspageID.ValueString(), &plan, &resp.Diagnostics))...)
 }
 
 func (r *statuspageComponentResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -174,7 +200,7 @@ func (r *statuspageComponentResource) Read(ctx context.Context, req resource.Rea
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, componentModelFromAPI(remote, state.StatuspageID.ValueString()))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, componentModelFromAPI(ctx, remote, state.StatuspageID.ValueString(), &state, &resp.Diagnostics))...)
 }
 
 func (r *statuspageComponentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -186,16 +212,19 @@ func (r *statuspageComponentResource) Update(ctx context.Context, req resource.U
 	}
 
 	in := client.ComponentInput{
-		Name:      plan.Name.ValueString(),
+		Name:      translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics),
 		IsGroup:   plan.IsGroup.ValueBoolPointer(),
 		IsVisible: plan.IsVisible.ValueBoolPointer(),
 		// null clears the link server-side; omitted keeps it — send explicitly
 		// (sync_tag_id: null unsyncs the group the same way).
-		Description:    plan.Description.ValueStringPointer(),
+		Description:    translatableInput(ctx, plan.Description, plan.DescriptionTranslations, &resp.Diagnostics),
 		ServiceID:      plan.ServiceID.ValueStringPointer(),
 		ParentID:       plan.ParentID.ValueStringPointer(),
 		SyncTagID:      plan.SyncTagID.ValueStringPointer(),
 		SyncNewVisible: plan.SyncNewVisible.ValueBoolPointer(),
+	}
+	if resp.Diagnostics.HasError() {
+		return
 	}
 	if !plan.DisplayOrder.IsNull() && !plan.DisplayOrder.IsUnknown() {
 		in.DisplayOrder = plan.DisplayOrder.ValueInt64Pointer()
@@ -207,7 +236,7 @@ func (r *statuspageComponentResource) Update(ctx context.Context, req resource.U
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, componentModelFromAPI(updated, state.StatuspageID.ValueString()))...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, componentModelFromAPI(ctx, updated, state.StatuspageID.ValueString(), &plan, &resp.Diagnostics))...)
 }
 
 func (r *statuspageComponentResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -238,12 +267,10 @@ func (r *statuspageComponentResource) ImportState(ctx context.Context, req resou
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[1])...)
 }
 
-func componentModelFromAPI(remote *client.Component, statuspageID string) *componentModel {
+func componentModelFromAPI(ctx context.Context, remote *client.Component, statuspageID string, prior *componentModel, diags *diag.Diagnostics) *componentModel {
 	m := &componentModel{
 		ID:             types.StringValue(remote.ID),
 		StatuspageID:   types.StringValue(statuspageID),
-		Name:           types.StringValue(remote.Name),
-		Description:    types.StringPointerValue(remote.Description),
 		ParentID:       types.StringPointerValue(remote.ParentID),
 		IsGroup:        types.BoolValue(remote.IsGroup),
 		IsVisible:      types.BoolValue(remote.IsVisible),
@@ -257,6 +284,23 @@ func componentModelFromAPI(remote *client.Component, statuspageID string) *compo
 		m.ServiceID = types.StringValue(remote.Service.ID)
 	} else {
 		m.ServiceID = types.StringNull()
+	}
+
+	priorNames, priorDescs := types.MapNull(types.StringType), types.MapNull(types.StringType)
+	if prior != nil {
+		priorNames, priorDescs = prior.NameTranslations, prior.DescriptionTranslations
+	}
+	m.Name, m.NameTranslations = translatableFromAPI(ctx, remote.Name, remote.NameTranslations, priorNames, diags)
+
+	// A fully-unset description must stay null on BOTH representations.
+	if remote.Description == nil && len(remote.DescriptionTranslations) == 0 {
+		m.Description, m.DescriptionTranslations = types.StringNull(), types.MapNull(types.StringType)
+	} else {
+		resolved := ""
+		if remote.Description != nil {
+			resolved = *remote.Description
+		}
+		m.Description, m.DescriptionTranslations = translatableFromAPI(ctx, resolved, remote.DescriptionTranslations, priorDescs, diags)
 	}
 
 	return m
