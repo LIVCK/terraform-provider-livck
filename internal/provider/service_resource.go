@@ -91,9 +91,11 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 					"them (or fails at the plan limit).",
 			},
 			"status": schema.StringAttribute{
-				Computed:            true,
-				MarkdownDescription: "Live monitoring status (runtime state, read-only).",
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				Computed: true,
+				MarkdownDescription: "Live monitoring status (runtime state, read-only). Deliberately NOT " +
+					"UseStateForUnknown: checks run continuously, so the status can legitimately change " +
+					"between plan and apply — promising the prior value would abort the apply with " +
+					"'inconsistent result after apply'.",
 			},
 			"tags": schema.SetAttribute{
 				ElementType: types.StringType,
