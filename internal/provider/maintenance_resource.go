@@ -273,9 +273,15 @@ func maintenanceModelFromAPI(ctx context.Context, remote *client.Maintenance, pr
 	diags.Append(d...)
 
 	m := &maintenanceModel{
-		ID:             types.StringValue(remote.ID),
-		ScheduledStart: start,
-		ScheduledEnd:   end,
+		ID: types.StringValue(remote.ID),
+		// Keep the practitioner's timestamp FORMAT when it denotes the same instant
+		// as the server echo. The API answers in UTC ("…T22:00:00+00:00") while a
+		// config may legitimately use a local offset ("…T23:00:00+01:00"); Terraform
+		// Core's post-apply consistency check compares values EXACTLY (it does not
+		// know about RFC3339 semantic equality), so echoing the server's format for
+		// a semantically identical instant would abort the apply.
+		ScheduledStart: sameInstantOr(prior.ScheduledStart, start),
+		ScheduledEnd:   sameInstantOr(prior.ScheduledEnd, end),
 		AutoStart:      types.BoolValue(remote.AutoStart),
 		AutoComplete:   types.BoolValue(remote.AutoComplete),
 		Notify24h:      prior.Notify24h,
@@ -322,4 +328,25 @@ func optionalString(v types.String) *string {
 		return nil
 	}
 	return v.ValueStringPointer()
+}
+
+// sameInstantOr returns the prior (config-formatted) timestamp when it denotes
+// the same instant as the freshly-read one, otherwise the new value. This keeps
+// state stable across timezone-offset formatting differences without hiding a
+// real reschedule.
+func sameInstantOr(prior, fresh timetypes.RFC3339) timetypes.RFC3339 {
+	if prior.IsNull() || prior.IsUnknown() || fresh.IsNull() || fresh.IsUnknown() {
+		return fresh
+	}
+
+	pt, dp := prior.ValueRFC3339Time()
+	ft, df := fresh.ValueRFC3339Time()
+	if dp.HasError() || df.HasError() {
+		return fresh
+	}
+
+	if pt.Equal(ft) {
+		return prior
+	}
+	return fresh
 }
