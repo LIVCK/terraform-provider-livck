@@ -39,7 +39,7 @@ func (p *livckProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manage LIVCK monitoring, status pages and maintenances as code. " +
 			"Authentication uses an organization API token (`lvk_...`, plan Team or higher). " +
-			"create one in the console under *Settings > API Tokens* with the abilities the " +
+			"Create one in the console under *Settings > API Tokens* with the abilities the " +
 			"managed resources need (services.\\*, statuspages.\\* incl. publish, maintenances.\\*).",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{

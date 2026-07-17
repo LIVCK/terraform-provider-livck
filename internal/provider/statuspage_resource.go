@@ -118,7 +118,7 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				MarkdownDescription: "Live state. Publishing consumes a plan slot (fails at the limit); unpublishing is always allowed.",
 			},
 
-			// ── Appearance ──────────────────────────────────────────────
+			// Appearance
 			"primary_color": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Brand primary color as `#RRGGBB`. Unset stops managing it (does not reset a value set elsewhere).",
@@ -158,7 +158,7 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 
-			// ── Access control ──────────────────────────────────────────
+			// Access control
 			"access_type": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
@@ -187,7 +187,7 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				MarkdownDescription: "Subscription channels offered on the page (`email`, `webhook`, `slack`, `teams`, `discord`, `telegram`). Null stops managing them.",
 			},
 
-			// ── Binary assets ───────────────────────────────────────────
+			// Binary assets
 			"logo": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Path to a local logo file (jpg, jpeg, png, webp or svg, max 2 MB). It is uploaded on apply. Change the file's contents and the next apply re-uploads it; remove the attribute to delete the logo.",

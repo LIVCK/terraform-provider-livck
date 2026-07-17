@@ -3,12 +3,12 @@
 page_title: "livck_statuspage_component Resource - livck"
 subcategory: ""
 description: |-
-  A component (or component group) on a status page. Link it to a monitored service via service_id so its status follows the checks. Display order is server-assigned by creation order (reordering stays console-managed in v0).
+  A component (or component group) on a status page. Link it to a monitored service via service_id so its status follows the checks. Set display_order to arrange components, or leave it out and the server appends each new one at the end.
 ---
 
 # livck_statuspage_component (Resource)
 
-A component (or component group) on a status page. Link it to a monitored service via `service_id` so its status follows the checks. Display order is server-assigned by creation order (reordering stays console-managed in v0).
+A component (or component group) on a status page. Link it to a monitored service via `service_id` so its status follows the checks. Set `display_order` to arrange components, or leave it out and the server appends each new one at the end.
 
 ## Example Usage
 
@@ -48,7 +48,7 @@ resource "livck_statuspage_component" "website" {
 - `service_id` (String) Public id of a monitored service whose status drives this component.
 - `show_uptime_bars` (Boolean) Render per-child uptime bars in this group.
 - `sync_new_visible` (Boolean) Whether services that later join the sync tag appear as VISIBLE children (default `true`). Only meaningful together with `sync_tag_id`.
-- `sync_tag_id` (String) Tag id (`livck_tag.....id`) that turns this GROUP into a tag-synced group: every service carrying the tag materializes as a machine-managed child server-side. Do not declare those children in Terraform; they are owned by the sync (`is_sync_managed` in the API) and follow tagging changes automatically. Only valid on groups (`is_group = true`); unsetting it releases the group and its children into normal, manually-managed components.
+- `sync_tag_id` (String) Tag id (`livck_tag.env_prod.id`) that turns this GROUP into a tag-synced group: every service carrying the tag materializes as a machine-managed child server-side. Do not declare those children in Terraform; they are owned by the sync (`is_sync_managed` in the API) and follow tagging changes automatically. Only valid on groups (`is_group = true`); unsetting it releases the group and its children into normal, manually-managed components.
 
 ### Read-Only
 

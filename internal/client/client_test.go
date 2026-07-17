@@ -37,6 +37,80 @@ func TestRetriesOn429HonoringRetryAfter(t *testing.T) {
 	}
 }
 
+// A 5xx may arrive after the server already committed the write, and the create
+// endpoints take no idempotency key, so a replayed POST would silently leave a
+// second resource behind that no state refers to.
+func TestCreateIsNotRetriedOn5xx(t *testing.T) {
+	var calls atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"message":"Server Error"}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "lvk_test")
+	if _, err := c.CreateService(context.Background(), ServiceInput{Name: "x", CheckType: "http"}); err == nil {
+		t.Fatal("expected the 500 to surface as an error")
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("a create must be sent exactly once, got %d calls", calls.Load())
+	}
+}
+
+// A 429 is a rejection: the server did not act on the request, so replaying it
+// cannot duplicate anything, even for a create.
+func TestCreateIsStillRetriedOn429(t *testing.T) {
+	var calls atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"message":"Too many requests."}`))
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"data":{"id":"abc","name":"x","check_type":"http","status":"unknown","is_paused":false}}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "lvk_test")
+	svc, err := c.CreateService(context.Background(), ServiceInput{Name: "x", CheckType: "http"})
+	if err != nil {
+		t.Fatalf("expected the 429 to be retried, got %v", err)
+	}
+	if svc.ID != "abc" {
+		t.Fatalf("unexpected service: %+v", svc)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("expected exactly one retry (2 calls), got %d", calls.Load())
+	}
+}
+
+// Guards the other half of the policy: idempotent methods keep retrying 5xx.
+func TestIdempotentRequestIsStillRetriedOn5xx(t *testing.T) {
+	var calls atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"id":"abc","name":"ok","check_type":"http","status":"up","is_paused":false}}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "lvk_test")
+	if _, err := c.GetService(context.Background(), "abc"); err != nil {
+		t.Fatalf("expected the 502 to be retried, got %v", err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("expected exactly one retry (2 calls), got %d", calls.Load())
+	}
+}
+
 func TestNotFoundIsTyped(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

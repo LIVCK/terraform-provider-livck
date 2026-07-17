@@ -41,8 +41,8 @@ resource "livck_service" "website" {
 ### Optional
 
 - `paused` (Boolean) Pause/resume monitoring declaratively. Note: the platform may pause services server-side on plan downgrades; the next apply resumes them (or fails at the plan limit).
-- `settings` (Attributes) Monitoring configuration. Omitted entirely, the service is created unconfigured and no checks run. (see [below for nested schema](#nestedatt--settings))
-- `tags` (Set of String) Tag ids (`livck_tag.....id`) attached to this service. Set, the assignment is fully managed: the list REPLACES whatever is attached (an empty set clears it). Omitted (null), tags stay unmanaged and console-side tagging is left untouched. Services carrying a tag referenced by a tag-synced statuspage group appear on that group automatically.
+- `settings` (Attributes) Monitoring configuration. Declared, Terraform manages it. Omitted on a new service, the service is created unconfigured and no checks run. Omitted on a service that already has settings, they stay as they are and simply go untracked, so removing the block stops managing the config rather than clearing it. An imported service starts with settings unset. (see [below for nested schema](#nestedatt--settings))
+- `tags` (Set of String) Tag ids (`livck_tag.env_prod.id`) attached to this service. Set, the assignment is fully managed: the list REPLACES whatever is attached (an empty set clears it). Omitted (null), tags stay unmanaged and console-side tagging is left untouched. Services carrying a tag referenced by a tag-synced statuspage group appear on that group automatically.
 - `target` (String) Check target (URL for http, `host:port` for tcp, hostname for dns/icmp/ssl). Required for every check type except `manual`.
 
 ### Read-Only

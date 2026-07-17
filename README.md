@@ -107,6 +107,13 @@ sync.
 (the list replaces whatever is attached, an empty list clears it). Leave it out
 and tagging stays whatever the console says, with no drift.
 
+**So is `settings`.** Declare the block and Terraform manages the monitoring
+config; leave it out and the service keeps whatever the console has, untracked.
+Removing the block later means "stop managing this", not "unconfigure the
+service": the checks keep running with their last config. For the same reason an
+imported service starts with `settings` unset, and the first plan writes your
+block back.
+
 ## Limitations
 
 - Children of a tag-synced group (`sync_tag_id`) are created server-side from
@@ -120,7 +127,7 @@ and tagging stays whatever the console says, with no drift.
 
 ## Development
 
-Go 1.24 or newer, and Terraform 1.5+ or OpenTofu.
+Go 1.25 or newer, and Terraform 1.5+ or OpenTofu.
 
 ```sh
 make build     # compile
@@ -128,7 +135,7 @@ make test      # unit tests, no network
 make generate  # rebuild docs/ from the schema and examples/
 
 # Acceptance tests need a live instance and a token:
-TF_ACC=1 LIVCK_ENDPOINT=http://localhost:8000/api LIVCK_API_TOKEN=lvk_... make testacc
+TF_ACC=1 LIVCK_ENDPOINT=http://localhost:15800/api LIVCK_API_TOKEN=lvk_... make testacc
 ```
 
 To try a local build, add a

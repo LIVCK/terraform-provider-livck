@@ -2,8 +2,9 @@
 //
 // Error contract (mirrors the API): 404 -> ErrNotFound (Terraform removes the
 // resource from state), 422 -> *ValidationError with the field error map,
-// 401/403 -> *APIError. 429 and 5xx are retried transparently with the
-// Retry-After header honored (retryablehttp's default backoff).
+// 401/403 -> *APIError. A 429 is retried transparently for any method with the
+// Retry-After header honored (retryablehttp's default backoff); 5xx and
+// transport errors are retried only for idempotent methods (see retryPolicy).
 package client
 
 import (
@@ -57,12 +58,36 @@ type Client struct {
 	http    *http.Client
 }
 
+// ctxKeyMethod carries the request method into retryPolicy, which is handed the
+// context but not the request, and sees a nil response on transport errors.
+type ctxKeyMethod struct{}
+
+// retryPolicy decides what may be replayed. A 429 is a rejection: the server
+// did not act on the request, so any method is safe to send again. A 5xx or a
+// dropped connection is different, because the write may already have been
+// committed and only the answer got lost. The create endpoints take no
+// idempotency key, so replaying a POST could quietly produce a second service
+// or status page that no Terraform state refers to and nobody goes looking for.
+// GET, PUT, PATCH and DELETE are idempotent and keep the default behaviour.
+func retryPolicy(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	if resp != nil && resp.StatusCode == http.StatusTooManyRequests {
+		return true, nil
+	}
+
+	if method, ok := ctx.Value(ctxKeyMethod{}).(string); ok && method == http.MethodPost {
+		return false, err
+	}
+
+	return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
+}
+
 func New(endpoint, token string) *Client {
 	rc := retryablehttp.NewClient()
 	rc.RetryMax = 4
 	rc.RetryWaitMin = 1 * time.Second
 	rc.RetryWaitMax = 30 * time.Second
 	rc.Logger = nil // no default noisy logging inside Terraform
+	rc.CheckRetry = retryPolicy
 
 	return &Client{
 		baseURL: strings.TrimRight(endpoint, "/") + "/v1",
@@ -122,6 +147,8 @@ func (c *Client) doMultipart(ctx context.Context, path, field, filename string, 
 // send sets the shared headers, executes the request and maps the response the
 // same way for JSON and multipart callers.
 func (c *Client) send(req *http.Request, contentType string, out any) error {
+	req = req.WithContext(context.WithValue(req.Context(), ctxKeyMethod{}, req.Method))
+
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
 	// Deliberately NO Accept-Language: translatable fields must resolve to the

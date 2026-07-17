@@ -36,7 +36,7 @@ func (d *statuspageDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Look up an existing status page by its public id (e.g. one managed outside of Terraform).",
 		Attributes: map[string]schema.Attribute{
-			"id":          schema.StringAttribute{Required: true},
+			"id":          schema.StringAttribute{Required: true, MarkdownDescription: "Public id of the status page to look up."},
 			"name":        schema.StringAttribute{Computed: true},
 			"slug":        schema.StringAttribute{Computed: true},
 			"published":   schema.BoolAttribute{Computed: true},

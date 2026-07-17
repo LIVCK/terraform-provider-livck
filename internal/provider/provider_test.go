@@ -64,11 +64,62 @@ resource "livck_service" "test" {
 				ExpectNonEmptyPlan: false,
 			},
 			{
-				ResourceName:            "livck_service.test",
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"settings.config"}, // secrets are unknowable on import
+				ResourceName:      "livck_service.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				// settings, like tags, is only tracked once it is declared: an
+				// import leaves it null and the first plan writes the block back.
+				ImportStateVerifyIgnore: []string{"settings"},
 			},
+		},
+	})
+}
+
+// A service must survive settings being added, removed and added again. Each of
+// those transitions used to fail the post-apply consistency check: the computed
+// scalars (timeout_seconds, retries) planned as null when the settings block
+// first appeared, and removing the block left its server-side values echoing
+// back into a state the plan said was null.
+func TestAccServiceResource_settingsLifecycle(t *testing.T) {
+	name := "tfacc-settings-lifecycle"
+
+	bare := fmt.Sprintf(`
+resource "livck_service" "test" {
+  name       = %q
+  check_type = "http"
+  target     = "https://example.com"
+}`, name)
+
+	configured := fmt.Sprintf(`
+resource "livck_service" "test" {
+  name       = %q
+  check_type = "http"
+  target     = "https://example.com"
+
+  settings = {
+    interval_seconds = 60
+    assigned_probes  = ["ffm"]
+  }
+}`, name)
+
+	emptyFollowUpPlan := resource.TestStep{RefreshState: true, ExpectNonEmptyPlan: false}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Created unconfigured: no settings block, and a second plan stays empty.
+			{Config: bare, Check: resource.TestCheckNoResourceAttr("livck_service.test", "settings")},
+			emptyFollowUpPlan,
+			// Settings added later: the API fills timeout/retries without a crash.
+			{Config: configured, Check: resource.TestCheckResourceAttr("livck_service.test", "settings.interval_seconds", "60")},
+			emptyFollowUpPlan,
+			// Settings removed: back to unconfigured, no leftover echo.
+			{Config: bare, Check: resource.TestCheckNoResourceAttr("livck_service.test", "settings")},
+			emptyFollowUpPlan,
+			// Settings re-added on top of a previously-null state.
+			{Config: configured, Check: resource.TestCheckResourceAttr("livck_service.test", "settings.interval_seconds", "60")},
+			emptyFollowUpPlan,
 		},
 	})
 }

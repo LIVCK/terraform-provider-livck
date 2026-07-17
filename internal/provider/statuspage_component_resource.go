@@ -59,8 +59,9 @@ func (r *statuspageComponentResource) Metadata(_ context.Context, req resource.M
 func (r *statuspageComponentResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A component (or component group) on a status page. Link it to a " +
-			"monitored service via `service_id` so its status follows the checks. Display " +
-			"order is server-assigned by creation order (reordering stays console-managed in v0).",
+			"monitored service via `service_id` so its status follows the checks. Set " +
+			"`display_order` to arrange components, or leave it out and the server appends " +
+			"each new one at the end.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:      true,
@@ -125,7 +126,7 @@ func (r *statuspageComponentResource) Schema(_ context.Context, _ resource.Schem
 			},
 			"sync_tag_id": schema.StringAttribute{
 				Optional: true,
-				MarkdownDescription: "Tag id (`livck_tag.....id`) that turns this GROUP into a tag-synced " +
+				MarkdownDescription: "Tag id (`livck_tag.env_prod.id`) that turns this GROUP into a tag-synced " +
 					"group: every service carrying the tag materializes as a machine-managed child " +
 					"server-side. Do not declare those children in Terraform; they are owned by the " +
 					"sync (`is_sync_managed` in the API) and follow tagging changes automatically. " +

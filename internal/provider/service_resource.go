@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -100,7 +99,7 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"tags": schema.SetAttribute{
 				ElementType: types.StringType,
 				Optional:    true,
-				MarkdownDescription: "Tag ids (`livck_tag.....id`) attached to this service. Set, the " +
+				MarkdownDescription: "Tag ids (`livck_tag.env_prod.id`) attached to this service. Set, the " +
 					"assignment is fully managed: the list REPLACES whatever is attached (an empty set " +
 					"clears it). Omitted (null), tags stay unmanaged and console-side tagging is left " +
 					"untouched. Services carrying a tag referenced by a tag-synced statuspage group " +
@@ -108,24 +107,27 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			},
 			"settings": schema.SingleNestedAttribute{
 				Optional: true,
-				MarkdownDescription: "Monitoring configuration. Omitted entirely, the service is " +
-					"created unconfigured and no checks run.",
+				MarkdownDescription: "Monitoring configuration. Declared, Terraform manages it. " +
+					"Omitted on a new service, the service is created unconfigured and no checks " +
+					"run. Omitted on a service that already has settings, they stay as they are " +
+					"and simply go untracked, so removing the block stops managing the config " +
+					"rather than clearing it. An imported service starts with settings unset.",
 				Attributes: map[string]schema.Attribute{
 					"interval_seconds": schema.Int64Attribute{
 						Optional:            true,
 						Computed:            true,
 						MarkdownDescription: "Check interval. Floor/ceiling depend on your plan and the check type (e.g. SSL checks run at most hourly).",
-						PlanModifiers:       []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
+						PlanModifiers:       []planmodifier.Int64{serverDefaultInt64()},
 					},
 					"timeout_seconds": schema.Int64Attribute{
 						Optional:      true,
 						Computed:      true,
-						PlanModifiers: []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
+						PlanModifiers: []planmodifier.Int64{serverDefaultInt64()},
 					},
 					"retries": schema.Int64Attribute{
 						Optional:      true,
 						Computed:      true,
-						PlanModifiers: []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
+						PlanModifiers: []planmodifier.Int64{serverDefaultInt64()},
 					},
 					"assigned_probes": schema.SetAttribute{
 						ElementType:         types.StringType,
@@ -342,7 +344,12 @@ func serviceModelFromAPI(ctx context.Context, remote *client.Service, prior *ser
 		m.Tags = set
 	}
 
-	if remote.Settings == nil {
+	// settings: null means "unmanaged", same as tags above. The API has no way to
+	// clear settings (an omitted key leaves them untouched), so a service
+	// configured earlier keeps echoing them back. Deciding on that echo would put
+	// a value in the state that the plan says is null, which Terraform rejects as
+	// an inconsistent result, leaving the block impossible to remove.
+	if prior == nil || prior.Settings == nil || remote.Settings == nil {
 		m.Settings = nil
 		return m, diags
 	}

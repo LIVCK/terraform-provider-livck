@@ -17,10 +17,10 @@ resource "livck_statuspage" "main" {
   name = "Acme Status"
 
   # Appearance
-  primary_color   = "#0F172A"
-  secondary_color = "#22C55E"
-  custom_css      = ".header { border-radius: 12px; }"
-  imprint_url     = "https://acme.example/imprint"
+  primary_color      = "#0F172A"
+  secondary_color    = "#22C55E"
+  custom_css         = ".header { border-radius: 12px; }"
+  imprint_url        = "https://acme.example/imprint"
   privacy_policy_url = "https://acme.example/privacy"
 
   # Access control. The password is write-only and never read back.
