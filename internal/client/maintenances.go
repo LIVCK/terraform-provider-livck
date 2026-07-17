@@ -14,10 +14,11 @@ type Maintenance struct {
 	Type              string            `json:"type"`
 	Status            string            `json:"status"`
 	ScheduledStart    string            `json:"scheduled_start"`
-	ScheduledEnd      string            `json:"scheduled_end"`
-	AutoStart         bool              `json:"auto_start"`
-	AutoComplete      bool              `json:"auto_complete"`
-	Services          []struct {
+	// ScheduledEnd is null for an open-ended window ("until further notice").
+	ScheduledEnd *string `json:"scheduled_end"`
+	AutoStart    bool    `json:"auto_start"`
+	AutoComplete bool    `json:"auto_complete"`
+	Services     []struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	} `json:"services"`
@@ -28,10 +29,15 @@ type Maintenance struct {
 }
 
 type MaintenanceInput struct {
-	Title          any       `json:"title,omitempty"`
-	Type           *string   `json:"type,omitempty"`
-	ScheduledStart string    `json:"scheduled_start,omitempty"`
-	ScheduledEnd   string    `json:"scheduled_end,omitempty"`
+	Title          any     `json:"title,omitempty"`
+	Type           *string `json:"type,omitempty"`
+	ScheduledStart string  `json:"scheduled_start,omitempty"`
+	// ScheduledEnd carries no omitempty on purpose: nil must reach the API as an
+	// explicit JSON null (= open-ended window). With omitempty a nil/empty end
+	// would DROP the key, which on PATCH means "keep the current end" - the
+	// window could never be reopened, and on POST some paths 422 on the absent
+	// (as opposed to null) key.
+	ScheduledEnd   *string   `json:"scheduled_end"`
 	ServiceIDs     *[]string `json:"service_ids,omitempty"`
 	StatuspageIDs  *[]string `json:"statuspage_ids,omitempty"`
 	AutoStart      *bool     `json:"auto_start,omitempty"`

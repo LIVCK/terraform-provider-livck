@@ -19,9 +19,10 @@ import (
 )
 
 var (
-	_ resource.Resource                = (*maintenanceResource)(nil)
-	_ resource.ResourceWithConfigure   = (*maintenanceResource)(nil)
-	_ resource.ResourceWithImportState = (*maintenanceResource)(nil)
+	_ resource.Resource                   = (*maintenanceResource)(nil)
+	_ resource.ResourceWithConfigure      = (*maintenanceResource)(nil)
+	_ resource.ResourceWithImportState    = (*maintenanceResource)(nil)
+	_ resource.ResourceWithValidateConfig = (*maintenanceResource)(nil)
 )
 
 type maintenanceResource struct {
@@ -56,7 +57,7 @@ func (r *maintenanceResource) Schema(_ context.Context, _ resource.SchemaRequest
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A scheduled maintenance window, announced on the linked status pages. " +
 			"Lifecycle transitions (start/complete/cancel) are runtime events and stay outside " +
-			"of Terraform — the window starts/completes automatically (`auto_start`/`auto_complete`).",
+			"of Terraform. The window starts and completes automatically (`auto_start`/`auto_complete`).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:      true,
@@ -84,12 +85,14 @@ func (r *maintenanceResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"scheduled_start": schema.StringAttribute{
 				CustomType:          timetypes.RFC3339Type{},
 				Required:            true,
-				MarkdownDescription: "RFC3339 timestamp. Compared semantically — timezone formatting differences do not produce diffs.",
+				MarkdownDescription: "RFC3339 timestamp. Compared semantically, so timezone formatting differences do not produce diffs.",
 			},
 			"scheduled_end": schema.StringAttribute{
-				CustomType:          timetypes.RFC3339Type{},
-				Required:            true,
-				MarkdownDescription: "RFC3339 timestamp; must be after `scheduled_start`.",
+				CustomType: timetypes.RFC3339Type{},
+				Optional:   true,
+				MarkdownDescription: "RFC3339 timestamp; must be after `scheduled_start`. Omit it for an " +
+					"open-ended window (\"until further notice\"): status pages then show no countdown and " +
+					"the window is completed manually, and `auto_complete` cannot be used without an end.",
 			},
 			"service_ids": schema.SetAttribute{
 				ElementType:         types.StringType,
@@ -107,9 +110,10 @@ func (r *maintenanceResource) Schema(_ context.Context, _ resource.SchemaRequest
 				MarkdownDescription: "Start the window automatically at scheduled_start (server default: true).",
 			},
 			"auto_complete": schema.BoolAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Complete the window automatically at scheduled_end (server default: false).",
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Complete the window automatically at scheduled_end (server default: false). " +
+					"Requires `scheduled_end`; an open-ended window is completed manually.",
 			},
 			// The notify flags are write-only on the API (no read echo yet): state
 			// equals configuration/default, never the server. Defaults mirror the
@@ -136,6 +140,31 @@ func (r *maintenanceResource) Schema(_ context.Context, _ resource.SchemaRequest
 
 func (r *maintenanceResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	r.client = clientFromProviderData(req.ProviderData, &resp.Diagnostics)
+}
+
+// ValidateConfig rejects `auto_complete` on an open-ended window at plan time.
+// auto_complete fires on `scheduled_end <= now()`, a condition a null end can
+// never meet - the flag would be a permanent no-op. The API refuses the combo on
+// create; catching it here reports the problem before an apply is attempted and
+// covers the update path too.
+func (r *maintenanceResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var config maintenanceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Unknown values (interpolations resolved at apply time) yield false/null
+	// here; those cases fall through to the API's own validation.
+	if config.AutoComplete.ValueBool() && config.ScheduledEnd.IsNull() {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("auto_complete"),
+			"auto_complete requires scheduled_end",
+			"An open-ended maintenance window (scheduled_end omitted) has no end to complete at, so "+
+				"auto_complete could never fire. Set scheduled_end, or leave auto_complete unset and "+
+				"complete the window manually.",
+		)
+	}
 }
 
 func (r *maintenanceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -232,12 +261,19 @@ func maintenanceInputFromModel(ctx context.Context, m *maintenanceModel) (client
 		Title:          translatableInput(ctx, m.Title, m.TitleTranslations, &diags),
 		Type:           optionalString(m.Type),
 		ScheduledStart: m.ScheduledStart.ValueString(),
-		ScheduledEnd:   m.ScheduledEnd.ValueString(),
+	}
+
+	// An unset end stays nil and is serialised as an explicit null -> open-ended
+	// window. Terraform hands us the full desired state on both create and
+	// update, so always sending the key also makes "remove scheduled_end from
+	// the config" actually clear the end server-side.
+	if !m.ScheduledEnd.IsNull() && !m.ScheduledEnd.IsUnknown() {
+		in.ScheduledEnd = m.ScheduledEnd.ValueStringPointer()
 	}
 
 	// A non-null Set (even empty) is sent as an explicit list so clearing to []
 	// reaches the API; a null Set stays unmanaged (key omitted). Bare []string
-	// + omitempty could not distinguish these — hence the pointer.
+	// + omitempty could not distinguish these - hence the pointer.
 	if !m.ServiceIDs.IsNull() && !m.ServiceIDs.IsUnknown() {
 		list := []string{}
 		diags.Append(m.ServiceIDs.ElementsAs(ctx, &list, false)...)
@@ -263,20 +299,28 @@ func maintenanceInputFromModel(ctx context.Context, m *maintenanceModel) (client
 }
 
 // maintenanceModelFromAPI maps the API echo onto the model. The notify flags
-// keep the prior (plan/state) values — they have no read echo on the API.
+// keep the prior (plan/state) values - they have no read echo on the API.
 func maintenanceModelFromAPI(ctx context.Context, remote *client.Maintenance, prior *maintenanceModel) (*maintenanceModel, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
 	start, d := timetypes.NewRFC3339Value(remote.ScheduledStart)
 	diags.Append(d...)
-	end, d := timetypes.NewRFC3339Value(remote.ScheduledEnd)
-	diags.Append(d...)
+
+	// A null echo means the window is open-ended: keep the attribute null instead
+	// of parsing "" as a timestamp. sameInstantOr below then round-trips null ->
+	// null, and a server-side end appearing on a window Terraform manages as
+	// open-ended still surfaces as real drift.
+	end := timetypes.NewRFC3339Null()
+	if remote.ScheduledEnd != nil {
+		end, d = timetypes.NewRFC3339Value(*remote.ScheduledEnd)
+		diags.Append(d...)
+	}
 
 	m := &maintenanceModel{
 		ID: types.StringValue(remote.ID),
 		// Keep the practitioner's timestamp FORMAT when it denotes the same instant
-		// as the server echo. The API answers in UTC ("…T22:00:00+00:00") while a
-		// config may legitimately use a local offset ("…T23:00:00+01:00"); Terraform
+		// as the server echo. The API answers in UTC ("...T22:00:00+00:00") while a
+		// config may legitimately use a local offset ("...T23:00:00+01:00"); Terraform
 		// Core's post-apply consistency check compares values EXACTLY (it does not
 		// know about RFC3339 semantic equality), so echoing the server's format for
 		// a semantically identical instant would abort the apply.
@@ -294,7 +338,7 @@ func maintenanceModelFromAPI(ctx context.Context, remote *client.Maintenance, pr
 	m.Title, m.TitleTranslations = translatableFromAPI(ctx, remote.Title, remote.TitleTranslations, prior.TitleTranslations, &diags)
 	m.Type = types.StringValue(remote.Type)
 
-	// service/statuspage linkage: only track it when the config manages it —
+	// service/statuspage linkage: only track it when the config manages it -
 	// a null set stays null (the server may add auto-detected services).
 	if !prior.ServiceIDs.IsNull() {
 		ids := make([]string, 0, len(remote.Services))
