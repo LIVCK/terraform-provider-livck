@@ -153,7 +153,3 @@ provider_installation {
 
 With `dev_overrides` in place you skip `terraform init` and run `plan`/`apply`
 directly.
-
-## Releasing
-
-See [PUBLISHING.md](./PUBLISHING.md).
