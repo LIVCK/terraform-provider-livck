@@ -3,6 +3,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -18,12 +19,13 @@ jobs:
       - run: go build -v ./...
       - run: go vet ./...
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.12
       - run: go test -v -race -cover ./internal/...
-  # Acceptance tests need a live instance + org token — run on demand.
-  # Set LIVCK_ENDPOINT + LIVCK_API_TOKEN as repository secrets first.
+  # Acceptance tests need a live instance and an org token, so they only run
+  # when triggered by hand. Set LIVCK_ENDPOINT and LIVCK_API_TOKEN as
+  # repository secrets first.
   acceptance:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
