@@ -31,7 +31,7 @@ func (d *checkTypesDataSource) Metadata(_ context.Context, req datasource.Metada
 func (d *checkTypesDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "The live per-check-type field/condition catalog (config fields, " +
-			"allowed condition fields/operators, interval bounds). Exposed as JSON — decode " +
+			"allowed condition fields/operators, interval bounds). Exposed as JSON. Decode " +
 			"with `jsondecode()`.",
 		Attributes: map[string]schema.Attribute{
 			"catalog_json": schema.StringAttribute{

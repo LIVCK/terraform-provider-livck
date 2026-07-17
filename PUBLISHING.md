@@ -1,47 +1,53 @@
 # Publishing to the Terraform Registry
 
-One-time setup (~15 minutes), then every release is a signed git tag.
+The registry does not host code. It watches GitHub releases, so publishing comes
+down to a signed tag. Setting it up takes about fifteen minutes once.
 
-## 0. Decisions still open
+## Before you start
 
-- [ ] **License**: `LICENSE` currently carries an MPL-2.0 stub header. Decide
-      MPL-2.0 (HashiCorp ecosystem default) vs. MIT and commit the full text.
-- [ ] **GitHub repo**: must be public and named exactly `terraform-provider-livck`
-      (the registry namespace comes from the GitHub org → `livck/livck` as the
-      provider source requires the org to be `livck`, or adjust `main.go`'s
-      address + docs to the actual namespace, e.g. `LIVCK/livck`).
+Two things to settle:
 
-## 1. One-time: GPG key (RSA — the registry does NOT accept ECC)
+**The repository** must be public and named exactly `terraform-provider-livck`.
+The registry derives the namespace from the GitHub organization, which is what
+makes the source `livck/livck`. If the org is named differently, adjust the
+address in `main.go` and the docs to match.
+
+**The license.** `LICENSE` currently holds MPL-2.0, the usual choice in the
+HashiCorp ecosystem. Swap it for MIT if you would rather.
+
+## One time: the signing key
+
+The registry verifies release signatures and only accepts RSA or DSA, not ECC.
 
 ```sh
-gpg --full-generate-key        # choose RSA and RSA, 4096 bit
+gpg --full-generate-key          # pick RSA and RSA, 4096 bit
 gpg --armor --export "<KEY_ID>" > livck-registry.pub.asc
-gpg --armor --export-secret-keys "<KEY_ID>"   # → GitHub secret GPG_PRIVATE_KEY
+gpg --armor --export-secret-keys "<KEY_ID>"
 ```
 
-- Add the **public** key in the Registry: https://registry.terraform.io →
-  Settings → GPG Keys (sign in with the GitHub org).
-- Add GitHub Actions secrets on the provider repo: `GPG_PRIVATE_KEY`,
-  `PASSPHRASE`.
+Add the public key at registry.terraform.io under Settings > GPG Keys, signed
+in with the GitHub organization. Then add two secrets to the provider repo:
+`GPG_PRIVATE_KEY` (the exported private key) and `PASSPHRASE`.
 
-## 2. One-time: connect the repo
+## One time: connect the repo
 
-Registry → *Publish → Provider* → select the GitHub org + the
-`terraform-provider-livck` repo. A webhook ingests every future release.
+In the registry, go to Publish > Provider and pick the organization and the
+`terraform-provider-livck` repository. That installs a webhook, and every
+release from then on is picked up on its own.
 
-## 3. Every release
+## Every release
 
 ```sh
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-The `release.yml` workflow runs GoReleaser: per-OS/arch zips,
-`…_SHA256SUMS`, the binary `…_SHA256SUMS.sig` (GPG-signed) and the
-`…_manifest.json` (protocol 6). The registry picks the release up
-automatically.
+The release workflow runs GoReleaser, which builds the per-platform archives,
+the `SHA256SUMS` file, its GPG signature, and the protocol manifest. The
+registry takes it from there.
 
-## 4. OpenTofu registry (optional, separate)
+## OpenTofu
 
-OpenTofu uses the same releases but its own registry — submit the provider
-once via PR to https://github.com/opentofu/registry (reuses the GPG-signed
-GitHub releases).
+OpenTofu reads the same GitHub releases but keeps its own registry. Submitting
+the provider is a one-off pull request against `github.com/opentofu/registry`;
+nothing about the release process changes.

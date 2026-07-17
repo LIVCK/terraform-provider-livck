@@ -1,8 +1,8 @@
 // Package client is a minimal, typed HTTP client for the LIVCK public API v1.
 //
-// Error contract (mirrors the API): 404 → ErrNotFound (Terraform removes the
-// resource from state), 422 → *ValidationError with the field error map,
-// 401/403 → *APIError. 429 and 5xx are retried transparently with the
+// Error contract (mirrors the API): 404 -> ErrNotFound (Terraform removes the
+// resource from state), 422 -> *ValidationError with the field error map,
+// 401/403 -> *APIError. 429 and 5xx are retried transparently with the
 // Retry-After header honored (retryablehttp's default backoff).
 package client
 
@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 )
 
-// ErrNotFound marks a 404 — the resource is gone (or belongs to another org,
+// ErrNotFound marks a 404 - the resource is gone (or belongs to another org,
 // which the API deliberately does not distinguish).
 var ErrNotFound = errors.New("resource not found")
 
@@ -50,7 +50,7 @@ func (e *ValidationError) Error() string {
 	return b.String()
 }
 
-// Client talks to {endpoint}/v1 with a bearer token (lvk_…).
+// Client talks to {endpoint}/v1 with a bearer token (lvk_...).
 type Client struct {
 	baseURL string
 	token   string

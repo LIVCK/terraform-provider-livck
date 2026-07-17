@@ -8,5 +8,5 @@ terraform {
 }
 
 # The token comes from the LIVCK_API_TOKEN environment variable.
-# Mint one in the console: Settings → API Tokens (plan Team or higher).
+# Mint one in the console: Settings > API Tokens (plan Team or higher).
 provider "livck" {}

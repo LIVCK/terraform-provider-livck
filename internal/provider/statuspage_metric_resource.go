@@ -50,7 +50,7 @@ func (r *statuspageMetricResource) Metadata(_ context.Context, req resource.Meta
 
 func (r *statuspageMetricResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "A metric chart on a status page — standalone or placed under a " +
+		MarkdownDescription: "A metric chart on a status page, either standalone or placed under a " +
 			"component (`component_id`). Its data comes from one or more " +
 			"`livck_statuspage_metric_series`.",
 		Attributes: map[string]schema.Attribute{

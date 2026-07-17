@@ -27,7 +27,7 @@ type tagResource struct {
 }
 
 // Mirrors the server-side key rule (TagInput::KEY_PATTERN): lowercase, starts
-// and ends alphanumeric, inner `_ . -` only — NO `/`, no trailing separator.
+// and ends alphanumeric, inner `_ . -` only - NO `/`, no trailing separator.
 // Keep in exact sync with the Laravel constant or configs pass here and 422 late.
 var tagKeyPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9_.-]{0,48}[a-z0-9])?$`)
 
@@ -47,12 +47,12 @@ func (r *tagResource) Metadata(_ context.Context, req resource.MetadataRequest, 
 
 func (r *tagResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "An organization-wide label for services — either a bare label (`critical`) " +
+		MarkdownDescription: "An organization-wide label for services: either a bare label (`critical`) " +
 			"or a key/value pair (`env` / `prod`). Attach tags to services via the `tags` argument on " +
 			"`livck_service`, and turn a statuspage group into a tag-synced group via `sync_tag_id` on " +
 			"`livck_statuspage_component`. Renaming keeps the id stable, so every tagged service and " +
 			"synced group follows. The (key, value) pair is unique per organization; a duplicate is " +
-			"rejected — import the existing tag instead.",
+			"rejected, so import the existing tag instead.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:      true,
@@ -80,7 +80,7 @@ func (r *tagResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			},
 			"label": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "Canonical display form — `key:value`, or just `key` for bare labels.",
+				MarkdownDescription: "Canonical display form: `key:value`, or just `key` for a bare label.",
 			},
 		},
 	}

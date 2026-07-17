@@ -3,12 +3,12 @@
 page_title: "livck_statuspage_metric Resource - livck"
 subcategory: ""
 description: |-
-  A metric chart on a status page — standalone or placed under a component (component_id). Its data comes from one or more livck_statuspage_metric_series.
+  A metric chart on a status page, either standalone or placed under a component (component_id). Its data comes from one or more livck_statuspage_metric_series.
 ---
 
 # livck_statuspage_metric (Resource)
 
-A metric chart on a status page — standalone or placed under a component (`component_id`). Its data comes from one or more `livck_statuspage_metric_series`.
+A metric chart on a status page, either standalone or placed under a component (`component_id`). Its data comes from one or more `livck_statuspage_metric_series`.
 
 ## Example Usage
 

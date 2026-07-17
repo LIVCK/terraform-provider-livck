@@ -46,7 +46,7 @@ func (r *statuspageMetricSeriesResource) Schema(_ context.Context, _ resource.Sc
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "One service's metric stream on a chart. The metric type must be " +
 			"one the service's check type can produce (see the `livck_check_types` data source) " +
-			"— the server rejects incompatible combinations.",
+			"The server rejects a combination it cannot produce.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:      true,

@@ -59,7 +59,7 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A monitored service (HTTP, TCP, DNS, ICMP, SSL or manual). " +
 			"Interval bounds, timeout/retry limits and per-check-type config fields are " +
-			"validated server-side against your plan and the check type — fetch the live " +
+			"validated server-side against your plan and the check type. Fetch the live " +
 			"catalog via the `livck_check_types` data source.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -72,7 +72,7 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			},
 			"check_type": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "One of `http`, `tcp`, `dns`, `icmp`, `ssl`, `manual`. Immutable — changing it replaces the service.",
+				MarkdownDescription: "One of `http`, `tcp`, `dns`, `icmp`, `ssl`, `manual`. Immutable: changing it replaces the service.",
 				Validators: []validator.String{
 					stringvalidator.OneOf("http", "tcp", "dns", "icmp", "ssl", "manual"),
 				},
@@ -94,13 +94,13 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Computed: true,
 				MarkdownDescription: "Live monitoring status (runtime state, read-only). Deliberately NOT " +
 					"UseStateForUnknown: checks run continuously, so the status can legitimately change " +
-					"between plan and apply — promising the prior value would abort the apply with " +
+					"between plan and apply, and promising the prior value would abort the apply with " +
 					"'inconsistent result after apply'.",
 			},
 			"tags": schema.SetAttribute{
 				ElementType: types.StringType,
 				Optional:    true,
-				MarkdownDescription: "Tag ids (`livck_tag.….id`) attached to this service. Set, the " +
+				MarkdownDescription: "Tag ids (`livck_tag.....id`) attached to this service. Set, the " +
 					"assignment is fully managed: the list REPLACES whatever is attached (an empty set " +
 					"clears it). Omitted (null), tags stay unmanaged and console-side tagging is left " +
 					"untouched. Services carrying a tag referenced by a tag-synced statuspage group " +
@@ -328,7 +328,7 @@ func serviceModelFromAPI(ctx context.Context, remote *client.Service, prior *ser
 		Status:    types.StringValue(remote.Status),
 	}
 
-	// tags: null in config means "unmanaged" — echoing console-side tags into
+	// tags: null in config means "unmanaged" - echoing console-side tags into
 	// the state would surface them as perpetual drift, so null stays null.
 	if prior == nil || prior.Tags.IsNull() {
 		m.Tags = types.SetNull(types.StringType)
@@ -383,7 +383,7 @@ func serviceModelFromAPI(ctx context.Context, remote *client.Service, prior *ser
 }
 
 // tagIDsFromSet turns the plan's tags set into the API input: nil when the
-// attribute is null/unknown (assignment unmanaged), a pointer otherwise —
+// attribute is null/unknown (assignment unmanaged), a pointer otherwise -
 // including a pointer to an EMPTY slice, which explicitly clears the tags.
 func tagIDsFromSet(ctx context.Context, set types.Set, diags *diag.Diagnostics) *[]string {
 	if set.IsNull() || set.IsUnknown() {

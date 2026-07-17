@@ -3,12 +3,12 @@
 page_title: "livck_tag Resource - livck"
 subcategory: ""
 description: |-
-  An organization-wide label for services — either a bare label (critical) or a key/value pair (env / prod). Attach tags to services via the tags argument on livck_service, and turn a statuspage group into a tag-synced group via sync_tag_id on livck_statuspage_component. Renaming keeps the id stable, so every tagged service and synced group follows. The (key, value) pair is unique per organization; a duplicate is rejected — import the existing tag instead.
+  An organization-wide label for services: either a bare label (critical) or a key/value pair (env / prod). Attach tags to services via the tags argument on livck_service, and turn a statuspage group into a tag-synced group via sync_tag_id on livck_statuspage_component. Renaming keeps the id stable, so every tagged service and synced group follows. The (key, value) pair is unique per organization; a duplicate is rejected, so import the existing tag instead.
 ---
 
 # livck_tag (Resource)
 
-An organization-wide label for services — either a bare label (`critical`) or a key/value pair (`env` / `prod`). Attach tags to services via the `tags` argument on `livck_service`, and turn a statuspage group into a tag-synced group via `sync_tag_id` on `livck_statuspage_component`. Renaming keeps the id stable, so every tagged service and synced group follows. The (key, value) pair is unique per organization; a duplicate is rejected — import the existing tag instead.
+An organization-wide label for services: either a bare label (`critical`) or a key/value pair (`env` / `prod`). Attach tags to services via the `tags` argument on `livck_service`, and turn a statuspage group into a tag-synced group via `sync_tag_id` on `livck_statuspage_component`. Renaming keeps the id stable, so every tagged service and synced group follows. The (key, value) pair is unique per organization; a duplicate is rejected, so import the existing tag instead.
 
 ## Example Usage
 
@@ -24,7 +24,8 @@ resource "livck_tag" "critical" {
   key = "critical"
 }
 
-# Tag services declaratively — the set REPLACES the assignment on every apply.
+# Setting tags hands the assignment to Terraform: the list replaces whatever is
+# attached on every apply.
 resource "livck_service" "api" {
   name       = "API"
   check_type = "http"
@@ -33,8 +34,8 @@ resource "livck_service" "api" {
   tags = [livck_tag.env_prod.id, livck_tag.critical.id]
 }
 
-# A tag-synced statuspage group: every service tagged env:prod materializes
-# as a machine-managed child automatically — do not declare those children.
+# A tag-synced group. Every service carrying env:prod shows up as a child on
+# its own, so do not declare those children here.
 resource "livck_statuspage_component" "production" {
   statuspage_id = livck_statuspage.main.id
   name          = "Production"
@@ -58,7 +59,7 @@ resource "livck_statuspage_component" "production" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `label` (String) Canonical display form — `key:value`, or just `key` for bare labels.
+- `label` (String) Canonical display form: `key:value`, or just `key` for a bare label.
 
 ## Import
 

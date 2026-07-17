@@ -68,7 +68,7 @@ func (r *statuspageComponentResource) Schema(_ context.Context, _ resource.Schem
 			},
 			"statuspage_id": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "The owning status page. Immutable — changing it replaces the component.",
+				MarkdownDescription: "The owning status page. Immutable: changing it replaces the component.",
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"name": schema.StringAttribute{
@@ -125,9 +125,9 @@ func (r *statuspageComponentResource) Schema(_ context.Context, _ resource.Schem
 			},
 			"sync_tag_id": schema.StringAttribute{
 				Optional: true,
-				MarkdownDescription: "Tag id (`livck_tag.….id`) that turns this GROUP into a tag-synced " +
+				MarkdownDescription: "Tag id (`livck_tag.....id`) that turns this GROUP into a tag-synced " +
 					"group: every service carrying the tag materializes as a machine-managed child " +
-					"server-side. Do NOT declare those children in Terraform — they are owned by the " +
+					"server-side. Do not declare those children in Terraform; they are owned by the " +
 					"sync (`is_sync_managed` in the API) and follow tagging changes automatically. " +
 					"Only valid on groups (`is_group = true`); unsetting it releases the group and its " +
 					"children into normal, manually-managed components.",
@@ -232,7 +232,7 @@ func (r *statuspageComponentResource) Update(ctx context.Context, req resource.U
 		Name:      translatableInput(ctx, plan.Name, plan.NameTranslations, &resp.Diagnostics),
 		IsGroup:   plan.IsGroup.ValueBoolPointer(),
 		IsVisible: plan.IsVisible.ValueBoolPointer(),
-		// null clears the link server-side; omitted keeps it — send explicitly
+		// null clears the link server-side; omitted keeps it - send explicitly
 		// (sync_tag_id: null unsyncs the group the same way).
 		Description:             translatableInput(ctx, plan.Description, plan.DescriptionTranslations, &resp.Diagnostics),
 		ServiceID:               plan.ServiceID.ValueStringPointer(),

@@ -38,8 +38,8 @@ func (p *livckProvider) Metadata(_ context.Context, _ provider.MetadataRequest, 
 func (p *livckProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manage LIVCK monitoring, status pages and maintenances as code. " +
-			"Authentication uses an organization API token (`lvk_…`, plan Team or higher) — " +
-			"create one in the console under *Settings → API Tokens* with the abilities the " +
+			"Authentication uses an organization API token (`lvk_...`, plan Team or higher). " +
+			"create one in the console under *Settings > API Tokens* with the abilities the " +
 			"managed resources need (services.\\*, statuspages.\\* incl. publish, maintenances.\\*).",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
@@ -50,7 +50,7 @@ func (p *livckProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp
 			"api_token": schema.StringAttribute{
 				Optional:  true,
 				Sensitive: true,
-				MarkdownDescription: "Organization API token (`lvk_…`). Prefer the " +
+				MarkdownDescription: "Organization API token (`lvk_...`). Prefer the " +
 					"`LIVCK_API_TOKEN` environment variable over hardcoding it.",
 			},
 		},
@@ -81,7 +81,7 @@ func (p *livckProvider) Configure(ctx context.Context, req provider.ConfigureReq
 			path.Root("api_token"),
 			"Missing LIVCK API token",
 			"Set the api_token provider attribute or the LIVCK_API_TOKEN environment variable. "+
-				"Tokens are minted in the LIVCK console (Settings → API Tokens) and require the Team plan or higher.",
+				"Tokens are created in the LIVCK console under Settings > API Tokens and require the Team plan or higher.",
 		)
 		return
 	}

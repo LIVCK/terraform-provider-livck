@@ -22,7 +22,7 @@ func (c *Client) ListProbes(ctx context.Context) ([]Probe, error) {
 	return env.Data, nil
 }
 
-// CheckTypeCatalog returns the raw per-check-type field/condition catalog —
+// CheckTypeCatalog returns the raw per-check-type field/condition catalog -
 // the schema is deep and check-type-specific, so it is exposed as JSON.
 func (c *Client) CheckTypeCatalog(ctx context.Context) (json.RawMessage, error) {
 	var raw json.RawMessage

@@ -15,7 +15,7 @@ func clientFromProviderData(data any, diags *diag.Diagnostics) *client.Client {
 	}
 	c, ok := data.(*client.Client)
 	if !ok {
-		diags.AddError("Unexpected provider data", "Expected *client.Client — this is a bug in the provider.")
+		diags.AddError("Unexpected provider data", "Expected *client.Client. This is a bug in the provider.")
 		return nil
 	}
 	return c

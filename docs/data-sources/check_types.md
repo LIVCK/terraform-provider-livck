@@ -3,12 +3,12 @@
 page_title: "livck_check_types Data Source - livck"
 subcategory: ""
 description: |-
-  The live per-check-type field/condition catalog (config fields, allowed condition fields/operators, interval bounds). Exposed as JSON — decode with jsondecode().
+  The live per-check-type field/condition catalog (config fields, allowed condition fields/operators, interval bounds). Exposed as JSON. Decode with jsondecode().
 ---
 
 # livck_check_types (Data Source)
 
-The live per-check-type field/condition catalog (config fields, allowed condition fields/operators, interval bounds). Exposed as JSON — decode with `jsondecode()`.
+The live per-check-type field/condition catalog (config fields, allowed condition fields/operators, interval bounds). Exposed as JSON. Decode with `jsondecode()`.
 
 ## Example Usage
 

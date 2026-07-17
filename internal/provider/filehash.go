@@ -16,7 +16,7 @@ import (
 // file named by a sibling path attribute. This is what makes a binary asset
 // (logo/favicon) diff correctly: Terraform compares attribute VALUES, and a raw
 // file path never changes when the file's CONTENT does. By re-hashing the file
-// on every plan, a changed image produces a changed hash → a diff → a re-upload,
+// on every plan, a changed image produces a changed hash -> a diff -> a re-upload,
 // with zero boilerplate for the practitioner (no manual `filesha256(...)`).
 type fileHashModifier struct {
 	pathAttr string
@@ -41,13 +41,13 @@ func (m fileHashModifier) PlanModifyString(ctx context.Context, req planmodifier
 		return
 	}
 
-	// No file configured → no hash (the asset is unmanaged / to be removed).
+	// No file configured -> no hash (the asset is unmanaged / to be removed).
 	if filePath.IsNull() {
 		resp.PlanValue = types.StringNull()
 		return
 	}
 
-	// Path still unknown at plan (e.g. interpolated from another unknown) → leave
+	// Path still unknown at plan (e.g. interpolated from another unknown) -> leave
 	// unknown; the value settles at apply.
 	if filePath.IsUnknown() {
 		resp.PlanValue = types.StringUnknown()
@@ -77,15 +77,15 @@ func hashFile(p string) (string, error) {
 }
 
 // urlFollowsHashModifier keeps a Computed served-URL stable across plans UNLESS
-// the local asset file's content is changing — a re-uploaded asset gets a
+// the local asset file's content is changing - a re-uploaded asset gets a
 // brand-new URL server-side, so a plain UseStateForUnknown would promise "no
 // change" and then trip Terraform's post-apply consistency check.
 //
 // CRITICAL: it must NOT read the sibling *_hash attribute from req.Plan. During
 // SchemaModifyPlan the plan is a snapshot and attribute modifiers do not observe
 // each other's just-computed values, so the sibling hash there is still the OLD
-// (state) value — comparing it to state always says "unchanged", the URL is kept,
-// and the apply then re-uploads to a new URL → "inconsistent result after apply".
+// (state) value - comparing it to state always says "unchanged", the URL is kept,
+// and the apply then re-uploads to a new URL -> "inconsistent result after apply".
 // Instead we hash the LOCAL FILE directly (the same source fileHashModifier uses)
 // and compare to the state's stored hash. Self-contained, order-independent.
 type urlFollowsHashModifier struct {
@@ -124,7 +124,7 @@ func (m urlFollowsHashModifier) PlanModifyString(ctx context.Context, req planmo
 	}
 
 	// No file configured now: if there was one before (state hash set), the asset
-	// is being removed and the URL will change → unknown; otherwise nothing.
+	// is being removed and the URL will change -> unknown; otherwise nothing.
 	if filePath.IsNull() {
 		if stateHash.IsNull() {
 			resp.PlanValue = req.StateValue
@@ -133,7 +133,7 @@ func (m urlFollowsHashModifier) PlanModifyString(ctx context.Context, req planmo
 		}
 		return
 	}
-	// Path interpolated from something still unknown → settle at apply.
+	// Path interpolated from something still unknown -> settle at apply.
 	if filePath.IsUnknown() {
 		resp.PlanValue = types.StringUnknown()
 		return
@@ -146,7 +146,7 @@ func (m urlFollowsHashModifier) PlanModifyString(ctx context.Context, req planmo
 		return
 	}
 
-	// Unchanged content → keep the stable URL; changed → re-upload → unknown.
+	// Unchanged content -> keep the stable URL; changed -> re-upload -> unknown.
 	if stateHash.ValueString() == hash {
 		resp.PlanValue = req.StateValue
 		return

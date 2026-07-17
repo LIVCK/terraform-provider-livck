@@ -3,12 +3,12 @@
 page_title: "livck_service Resource - livck"
 subcategory: ""
 description: |-
-  A monitored service (HTTP, TCP, DNS, ICMP, SSL or manual). Interval bounds, timeout/retry limits and per-check-type config fields are validated server-side against your plan and the check type — fetch the live catalog via the livck_check_types data source.
+  A monitored service (HTTP, TCP, DNS, ICMP, SSL or manual). Interval bounds, timeout/retry limits and per-check-type config fields are validated server-side against your plan and the check type. Fetch the live catalog via the livck_check_types data source.
 ---
 
 # livck_service (Resource)
 
-A monitored service (HTTP, TCP, DNS, ICMP, SSL or manual). Interval bounds, timeout/retry limits and per-check-type config fields are validated server-side against your plan and the check type — fetch the live catalog via the `livck_check_types` data source.
+A monitored service (HTTP, TCP, DNS, ICMP, SSL or manual). Interval bounds, timeout/retry limits and per-check-type config fields are validated server-side against your plan and the check type. Fetch the live catalog via the `livck_check_types` data source.
 
 ## Example Usage
 
@@ -35,20 +35,20 @@ resource "livck_service" "website" {
 
 ### Required
 
-- `check_type` (String) One of `http`, `tcp`, `dns`, `icmp`, `ssl`, `manual`. Immutable — changing it replaces the service.
+- `check_type` (String) One of `http`, `tcp`, `dns`, `icmp`, `ssl`, `manual`. Immutable: changing it replaces the service.
 - `name` (String)
 
 ### Optional
 
 - `paused` (Boolean) Pause/resume monitoring declaratively. Note: the platform may pause services server-side on plan downgrades; the next apply resumes them (or fails at the plan limit).
 - `settings` (Attributes) Monitoring configuration. Omitted entirely, the service is created unconfigured and no checks run. (see [below for nested schema](#nestedatt--settings))
-- `tags` (Set of String) Tag ids (`livck_tag.….id`) attached to this service. Set, the assignment is fully managed: the list REPLACES whatever is attached (an empty set clears it). Omitted (null), tags stay unmanaged and console-side tagging is left untouched. Services carrying a tag referenced by a tag-synced statuspage group appear on that group automatically.
+- `tags` (Set of String) Tag ids (`livck_tag.....id`) attached to this service. Set, the assignment is fully managed: the list REPLACES whatever is attached (an empty set clears it). Omitted (null), tags stay unmanaged and console-side tagging is left untouched. Services carrying a tag referenced by a tag-synced statuspage group appear on that group automatically.
 - `target` (String) Check target (URL for http, `host:port` for tcp, hostname for dns/icmp/ssl). Required for every check type except `manual`.
 
 ### Read-Only
 
 - `id` (String) Stable public identifier (NanoID). Used for `terraform import`.
-- `status` (String) Live monitoring status (runtime state, read-only).
+- `status` (String) Live monitoring status (runtime state, read-only). Deliberately NOT UseStateForUnknown: checks run continuously, so the status can legitimately change between plan and apply, and promising the prior value would abort the apply with 'inconsistent result after apply'.
 
 <a id="nestedatt--settings"></a>
 ### Nested Schema for `settings`

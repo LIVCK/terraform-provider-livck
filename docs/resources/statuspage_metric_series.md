@@ -3,12 +3,12 @@
 page_title: "livck_statuspage_metric_series Resource - livck"
 subcategory: ""
 description: |-
-  One service's metric stream on a chart. The metric type must be one the service's check type can produce (see the livck_check_types data source) — the server rejects incompatible combinations.
+  One service's metric stream on a chart. The metric type must be one the service's check type can produce (see the livck_check_types data source) The server rejects a combination it cannot produce.
 ---
 
 # livck_statuspage_metric_series (Resource)
 
-One service's metric stream on a chart. The metric type must be one the service's check type can produce (see the `livck_check_types` data source) — the server rejects incompatible combinations.
+One service's metric stream on a chart. The metric type must be one the service's check type can produce (see the `livck_check_types` data source) The server rejects a combination it cannot produce.
 
 ## Example Usage
 

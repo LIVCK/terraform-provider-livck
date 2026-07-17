@@ -35,7 +35,7 @@ type Statuspage struct {
 }
 
 // StatuspageInput: translatable Name is `any` (plain string or {locale: value}
-// map). Nullable appearance fields keep omitempty — the provider only sends the
+// map). Nullable appearance fields keep omitempty - the provider only sends the
 // keys the practitioner actually set, and passes an explicit null (via a pointer
 // to nil is not possible with omitempty, so clearing is done by sending the zero
 // where meaningful). Password is write-only (never echoed; see HasPassword).
@@ -105,7 +105,7 @@ type Component struct {
 }
 
 // ComponentInput: description/service_id/parent_id are sent WITHOUT omitempty
-// on purpose — clearing a link (re-parenting to root, unlinking a service)
+// on purpose - clearing a link (re-parenting to root, unlinking a service)
 // requires an explicit null; an omitted key means "keep" server-side.
 type ComponentInput struct {
 	Name                    any     `json:"name,omitempty"`

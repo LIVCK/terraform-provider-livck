@@ -50,7 +50,7 @@ type statuspageModel struct {
 	HasPassword        types.Bool   `tfsdk:"has_password"`
 	EmailWhitelist     types.Set    `tfsdk:"email_whitelist"`
 	SubscriberChannels types.Set    `tfsdk:"subscriber_channels"`
-	// Binary assets: local file paths → uploaded; served URLs computed; the
+	// Binary assets: local file paths -> uploaded; served URLs computed; the
 	// content hashes drive re-upload on change (stamped by fileHashModifier).
 	Logo         types.String `tfsdk:"logo"`
 	LogoDark     types.String `tfsdk:"logo_dark"`
@@ -169,7 +169,7 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"password": schema.StringAttribute{
 				Optional:            true,
 				Sensitive:           true,
-				MarkdownDescription: "Access password (write-only — never read back; the server exposes only `has_password`). Min 8 chars. A console-side change is not detected here.",
+				MarkdownDescription: "Access password. Write-only: it is never read back, and the server only reports `has_password`. Minimum 8 characters. A change made in the console is not detected here.",
 				Validators:          []validator.String{stringvalidator.LengthBetween(8, 255)},
 			},
 			"has_password": schema.BoolAttribute{
@@ -190,15 +190,15 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			// ── Binary assets ───────────────────────────────────────────
 			"logo": schema.StringAttribute{
 				Optional:            true,
-				MarkdownDescription: "Path to a local logo file (jpg/jpeg/png/webp/svg, ≤2 MB) — uploaded on apply. Change the file's content to trigger a re-upload; unset to remove.",
+				MarkdownDescription: "Path to a local logo file (jpg, jpeg, png, webp or svg, max 2 MB). It is uploaded on apply. Change the file's contents and the next apply re-uploads it; remove the attribute to delete the logo.",
 			},
 			"logo_dark": schema.StringAttribute{
 				Optional:            true,
-				MarkdownDescription: "Path to a local dark-mode logo file (jpg/jpeg/png/webp/svg, ≤2 MB).",
+				MarkdownDescription: "Path to a local dark-mode logo file (jpg, jpeg, png, webp or svg, max 2 MB).",
 			},
 			"favicon": schema.StringAttribute{
 				Optional:            true,
-				MarkdownDescription: "Path to a local favicon file (ico/png/svg, ≤1 MB).",
+				MarkdownDescription: "Path to a local favicon file (ico, png or svg, max 1 MB).",
 			},
 			"logo_url":       computedURL("The served logo URL.", "logo", "logo_hash"),
 			"logo_dark_url":  computedURL("The served dark-mode logo URL.", "logo_dark", "logo_dark_hash"),
@@ -302,7 +302,7 @@ func (r *statuspageResource) Read(ctx context.Context, req resource.ReadRequest,
 	newState := statuspageModelFromAPI(ctx, remote, &state, &resp.Diagnostics)
 
 	// Served asset URLs are regenerated server-side after upload (async image
-	// conversion → new conversion path + cache-buster), so a refresh would read
+	// conversion -> new conversion path + cache-buster), so a refresh would read
 	// a value different from the one captured at upload time and diff forever.
 	// The URL only meaningfully changes when WE re-upload (driven by the content
 	// hash in Update), so on a plain refresh we keep the captured value.
@@ -483,7 +483,7 @@ func statuspageModelFromAPI(ctx context.Context, remote *client.Statuspage, prio
 	m.Name, m.NameTranslations = translatableFromAPI(ctx, remote.Name, remote.NameTranslations, priorNames, diags)
 
 	// Appearance strings: echo the server value only when the field is managed
-	// (prior set), else keep null — a null Optional attribute is "unmanaged" and
+	// (prior set), else keep null - a null Optional attribute is "unmanaged" and
 	// must not drift against the server's stored value.
 	m.PrimaryColor = keepOrEcho(prior, func(p *statuspageModel) types.String { return p.PrimaryColor }, remote.PrimaryColor)
 	m.SecondaryColor = keepOrEcho(prior, func(p *statuspageModel) types.String { return p.SecondaryColor }, remote.SecondaryColor)

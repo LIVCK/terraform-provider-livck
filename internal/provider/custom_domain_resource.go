@@ -45,9 +45,9 @@ func (r *customDomainResource) Metadata(_ context.Context, req resource.Metadata
 func (r *customDomainResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A custom domain on a status page. Creating it returns the COMPLETE DNS " +
-			"record set as computed attributes — wire `cname_target`, `txt_record_name` and " +
+			"record set as computed attributes. Wire `cname_target`, `txt_record_name` and " +
 			"`txt_record_value` straight into your DNS provider's Terraform resources (Cloudflare, " +
-			"Route53, …) and the platform's background verification takes the domain live on its " +
+			"Route53, ...) and the platform's background verification takes the domain live on its " +
 			"own; no further apply needed. TLS is issued automatically once verified.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -56,19 +56,19 @@ func (r *customDomainResource) Schema(_ context.Context, _ resource.SchemaReques
 			},
 			"statuspage_id": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "The status page served under this domain. Immutable — changing it replaces the domain.",
+				MarkdownDescription: "The status page served under this domain. Immutable: changing it replaces the domain.",
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"hostname": schema.StringAttribute{
 				Required: true,
-				MarkdownDescription: "Fully-qualified hostname, e.g. `status.example.com`. Immutable — " +
+				MarkdownDescription: "Fully-qualified hostname, e.g. `status.example.com`. Immutable: " +
 					"changing it replaces the domain (new identity, new TXT token).",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"status": schema.StringAttribute{
 				Computed: true,
-				MarkdownDescription: "Verification lifecycle: `pending_verification` → `active` (or `failed` " +
-					"after the retry budget). Server-managed — refreshes on read.",
+				MarkdownDescription: "Verification lifecycle: `pending_verification`, then `active` (or `failed` " +
+					"after the retry budget). Server-managed, refreshed on read.",
 			},
 			"cname_target": schema.StringAttribute{
 				Computed:            true,
@@ -136,7 +136,7 @@ func (r *customDomainResource) Read(ctx context.Context, req resource.ReadReques
 func (r *customDomainResource) Update(_ context.Context, _ resource.UpdateRequest, resp *resource.UpdateResponse) {
 	resp.Diagnostics.AddError(
 		"Custom domains cannot be updated in place",
-		"Both statuspage_id and hostname force a replacement — this is a provider bug.",
+		"Both statuspage_id and hostname force a replacement, so this is a provider bug.",
 	)
 }
 

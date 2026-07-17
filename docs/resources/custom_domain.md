@@ -3,12 +3,12 @@
 page_title: "livck_custom_domain Resource - livck"
 subcategory: ""
 description: |-
-  A custom domain on a status page. Creating it returns the COMPLETE DNS record set as computed attributes — wire cname_target, txt_record_name and txt_record_value straight into your DNS provider's Terraform resources (Cloudflare, Route53, …) and the platform's background verification takes the domain live on its own; no further apply needed. TLS is issued automatically once verified.
+  A custom domain on a status page. Creating it returns the COMPLETE DNS record set as computed attributes. Wire cname_target, txt_record_name and txt_record_value straight into your DNS provider's Terraform resources (Cloudflare, Route53, ...) and the platform's background verification takes the domain live on its own; no further apply needed. TLS is issued automatically once verified.
 ---
 
 # livck_custom_domain (Resource)
 
-A custom domain on a status page. Creating it returns the COMPLETE DNS record set as computed attributes — wire `cname_target`, `txt_record_name` and `txt_record_value` straight into your DNS provider's Terraform resources (Cloudflare, Route53, …) and the platform's background verification takes the domain live on its own; no further apply needed. TLS is issued automatically once verified.
+A custom domain on a status page. Creating it returns the COMPLETE DNS record set as computed attributes. Wire `cname_target`, `txt_record_name` and `txt_record_value` straight into your DNS provider's Terraform resources (Cloudflare, Route53, ...) and the platform's background verification takes the domain live on its own; no further apply needed. TLS is issued automatically once verified.
 
 ## Example Usage
 
@@ -18,8 +18,8 @@ resource "livck_custom_domain" "status" {
   hostname      = "status.example.com"
 }
 
-# Wire the computed record set into ANY DNS provider — verification then
-# completes automatically in the background; no second apply needed.
+# The record set is computed, so you can create the records with whichever DNS
+# provider you use. Verification then finishes on its own in the background.
 resource "cloudflare_record" "status_cname" {
   zone_id = var.cloudflare_zone_id
   name    = livck_custom_domain.status.hostname
@@ -40,14 +40,14 @@ resource "cloudflare_record" "status_verify" {
 
 ### Required
 
-- `hostname` (String) Fully-qualified hostname, e.g. `status.example.com`. Immutable — changing it replaces the domain (new identity, new TXT token).
-- `statuspage_id` (String) The status page served under this domain. Immutable — changing it replaces the domain.
+- `hostname` (String) Fully-qualified hostname, e.g. `status.example.com`. Immutable: changing it replaces the domain (new identity, new TXT token).
+- `statuspage_id` (String) The status page served under this domain. Immutable: changing it replaces the domain.
 
 ### Read-Only
 
 - `cname_target` (String) Create a CNAME record pointing `hostname` at this target.
 - `id` (String) The ID of this resource.
-- `status` (String) Verification lifecycle: `pending_verification` → `active` (or `failed` after the retry budget). Server-managed — refreshes on read.
+- `status` (String) Verification lifecycle: `pending_verification`, then `active` (or `failed` after the retry budget). Server-managed, refreshed on read.
 - `txt_record_name` (String) Name of the ownership-proof TXT record (`_livck-verify.<hostname>`).
 - `txt_record_value` (String) Value of the ownership-proof TXT record.
 - `verified` (Boolean) Whether DNS verification has completed (read-only).

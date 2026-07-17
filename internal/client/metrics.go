@@ -20,7 +20,7 @@ type Metric struct {
 	Series             []Series          `json:"series"`
 }
 
-// MetricInput: component_id is sent WITHOUT omitempty on purpose — detaching
+// MetricInput: component_id is sent WITHOUT omitempty on purpose - detaching
 // a chart from its component requires an explicit null.
 type MetricInput struct {
 	Name         any     `json:"name,omitempty"`
@@ -44,7 +44,7 @@ type Series struct {
 	} `json:"service"`
 }
 
-// SeriesInput: color without omitempty — an explicit null resets it.
+// SeriesInput: color without omitempty - an explicit null resets it.
 type SeriesInput struct {
 	Name         string  `json:"name,omitempty"`
 	ServiceID    string  `json:"service_id,omitempty"`

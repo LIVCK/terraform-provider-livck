@@ -23,14 +23,14 @@ resource "livck_statuspage" "main" {
   imprint_url     = "https://acme.example/imprint"
   privacy_policy_url = "https://acme.example/privacy"
 
-  # Access control (password is write-only — never read back)
+  # Access control. The password is write-only and never read back.
   access_type = "password"
   password    = var.statuspage_password
 
   subscriber_channels = ["email", "webhook"]
 
-  # Binary assets uploaded from local files (private repos → uploaded, not pulled).
-  # Change the file's content to trigger a re-upload automatically.
+  # Assets are uploaded from disk rather than fetched from a URL, so this works
+  # with a private repo. Change the file and the next apply re-uploads it.
   logo    = "${path.module}/assets/logo.png"
   favicon = "${path.module}/assets/favicon.png"
 }
@@ -46,13 +46,13 @@ output "logo_url" { value = livck_statuspage.main.logo_url }
 - `access_type` (String) One of `public`, `password`, `email_whitelist`. Switching to `password` requires `password`; `email_whitelist` requires a non-empty `email_whitelist`.
 - `custom_css` (String) Custom CSS injected into the public page (server-sanitized).
 - `email_whitelist` (Set of String) Allowed viewer emails for `email_whitelist` access. Null stops managing the list.
-- `favicon` (String) Path to a local favicon file (ico/png/svg, ≤1 MB).
+- `favicon` (String) Path to a local favicon file (ico, png or svg, max 1 MB).
 - `imprint_url` (String) Footer imprint link (http/https/mailto only).
-- `logo` (String) Path to a local logo file (jpg/jpeg/png/webp/svg, ≤2 MB) — uploaded on apply. Change the file's content to trigger a re-upload; unset to remove.
-- `logo_dark` (String) Path to a local dark-mode logo file (jpg/jpeg/png/webp/svg, ≤2 MB).
+- `logo` (String) Path to a local logo file (jpg, jpeg, png, webp or svg, max 2 MB). It is uploaded on apply. Change the file's contents and the next apply re-uploads it; remove the attribute to delete the logo.
+- `logo_dark` (String) Path to a local dark-mode logo file (jpg, jpeg, png, webp or svg, max 2 MB).
 - `name` (String) Single-language name. Exactly one of `name` and `name_translations` must be set.
 - `name_translations` (Map of String) Multilingual name as a `{locale = value}` map.
-- `password` (String, Sensitive) Access password (write-only — never read back; the server exposes only `has_password`). Min 8 chars. A console-side change is not detected here.
+- `password` (String, Sensitive) Access password. Write-only: it is never read back, and the server only reports `has_password`. Minimum 8 characters. A change made in the console is not detected here.
 - `primary_color` (String) Brand primary color as `#RRGGBB`. Unset stops managing it (does not reset a value set elsewhere).
 - `privacy_policy_url` (String) Footer privacy-policy link (http/https/mailto only).
 - `published` (Boolean) Live state. Publishing consumes a plan slot (fails at the limit); unpublishing is always allowed.

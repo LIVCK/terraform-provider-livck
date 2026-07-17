@@ -9,7 +9,8 @@ resource "livck_tag" "critical" {
   key = "critical"
 }
 
-# Tag services declaratively — the set REPLACES the assignment on every apply.
+# Setting tags hands the assignment to Terraform: the list replaces whatever is
+# attached on every apply.
 resource "livck_service" "api" {
   name       = "API"
   check_type = "http"
@@ -18,8 +19,8 @@ resource "livck_service" "api" {
   tags = [livck_tag.env_prod.id, livck_tag.critical.id]
 }
 
-# A tag-synced statuspage group: every service tagged env:prod materializes
-# as a machine-managed child automatically — do not declare those children.
+# A tag-synced group. Every service carrying env:prod shows up as a child on
+# its own, so do not declare those children here.
 resource "livck_statuspage_component" "production" {
   statuspage_id = livck_statuspage.main.id
   name          = "Production"

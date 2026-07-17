@@ -32,7 +32,7 @@ resource "livck_statuspage_component" "website" {
 
 ### Required
 
-- `statuspage_id` (String) The owning status page. Immutable — changing it replaces the component.
+- `statuspage_id` (String) The owning status page. Immutable: changing it replaces the component.
 
 ### Optional
 
@@ -48,7 +48,7 @@ resource "livck_statuspage_component" "website" {
 - `service_id` (String) Public id of a monitored service whose status drives this component.
 - `show_uptime_bars` (Boolean) Render per-child uptime bars in this group.
 - `sync_new_visible` (Boolean) Whether services that later join the sync tag appear as VISIBLE children (default `true`). Only meaningful together with `sync_tag_id`.
-- `sync_tag_id` (String) Tag id (`livck_tag.….id`) that turns this GROUP into a tag-synced group: every service carrying the tag materializes as a machine-managed child server-side. Do NOT declare those children in Terraform — they are owned by the sync (`is_sync_managed` in the API) and follow tagging changes automatically. Only valid on groups (`is_group = true`); unsetting it releases the group and its children into normal, manually-managed components.
+- `sync_tag_id` (String) Tag id (`livck_tag.....id`) that turns this GROUP into a tag-synced group: every service carrying the tag materializes as a machine-managed child server-side. Do not declare those children in Terraform; they are owned by the sync (`is_sync_managed` in the API) and follow tagging changes automatically. Only valid on groups (`is_group = true`); unsetting it releases the group and its children into normal, manually-managed components.
 
 ### Read-Only
 

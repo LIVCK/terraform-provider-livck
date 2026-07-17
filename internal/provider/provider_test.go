@@ -23,7 +23,7 @@ var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServe
 func testAccPreCheck(t *testing.T) {
 	t.Helper()
 	if os.Getenv("LIVCK_API_TOKEN") == "" {
-		t.Skip("LIVCK_API_TOKEN not set — acceptance tests need a live LIVCK instance and an org token")
+		t.Skip("LIVCK_API_TOKEN not set, acceptance tests need a live instance and an org token")
 	}
 }
 

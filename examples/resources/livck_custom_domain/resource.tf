@@ -3,8 +3,8 @@ resource "livck_custom_domain" "status" {
   hostname      = "status.example.com"
 }
 
-# Wire the computed record set into ANY DNS provider — verification then
-# completes automatically in the background; no second apply needed.
+# The record set is computed, so you can create the records with whichever DNS
+# provider you use. Verification then finishes on its own in the background.
 resource "cloudflare_record" "status_cname" {
   zone_id = var.cloudflare_zone_id
   name    = livck_custom_domain.status.hostname

@@ -10,7 +10,7 @@ const KeepSentinel = "__LIVCK_KEEP_UNCHANGED__"
 // MergeSecrets walks the remote config and replaces every KeepSentinel leaf
 // with the value at the same path from the prior (state) config, so the
 // provider's Read never writes the sentinel into state and plans stay clean.
-// Paths missing from the prior config keep the sentinel — the caller decides
+// Paths missing from the prior config keep the sentinel - the caller decides
 // how to surface that (it only happens on import, where secrets are
 // unknowable by design).
 func MergeSecrets(remote, prior json.RawMessage) (json.RawMessage, error) {
@@ -69,15 +69,15 @@ func mergeValue(remote, prior any) any {
 
 // ReconcileConfig decides what the provider stores for settings.config.
 //
-// The API seeds check-type defaults (method, verify_ssl, default conditions …)
+// The API seeds check-type defaults (method, verify_ssl, default conditions ...)
 // into every persisted config, so the echo is a SUPERSET of what the user
 // declared. As long as everything the user wrote still matches the remote
 // value (after resolving keep-sentinels), the state keeps the user's exact
-// JSON — server-seeded defaults stay unmanaged and plans stay clean. Only
+// JSON - server-seeded defaults stay unmanaged and plans stay clean. Only
 // when a user-declared value actually changed remotely does the merged echo
 // surface as drift.
 //
-// A null/empty prior means the user does not manage config at all — it stays
+// A null/empty prior means the user does not manage config at all - it stays
 // null (the import case is documented: secrets and config must be re-declared).
 func ReconcileConfig(remote, prior json.RawMessage) (json.RawMessage, error) {
 	if len(prior) == 0 || string(prior) == "null" {
