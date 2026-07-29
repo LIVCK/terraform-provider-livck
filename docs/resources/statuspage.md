@@ -59,6 +59,7 @@ output "logo_url" { value = livck_statuspage.main.logo_url }
 - `secondary_color` (String) Brand secondary color as `#RRGGBB`.
 - `show_affected_services` (Boolean)
 - `show_incident_history` (Boolean)
+- `show_livi` (Boolean) Whether LIVI (the LIVCK character) is rendered in the page header instead of the plain status icon. Defaults to enabled.
 - `show_logo` (Boolean) Whether the logo is rendered.
 - `slug` (String) Public subdomain slug (globally unique). Omitted, it is derived from the name.
 - `subscriber_channels` (Set of String) Subscription channels offered on the page (`email`, `webhook`, `slack`, `teams`, `discord`, `telegram`). Null stops managing them.

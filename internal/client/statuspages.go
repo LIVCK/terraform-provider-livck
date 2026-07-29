@@ -21,6 +21,7 @@ type Statuspage struct {
 	ImprintURL           *string `json:"imprint_url"`
 	PrivacyPolicyURL     *string `json:"privacy_policy_url"`
 	ShowLogo             bool    `json:"show_logo"`
+	ShowLivi             bool    `json:"show_livi"`
 	ShowAffectedServices bool    `json:"show_affected_services"`
 	ShowIncidentHistory  bool    `json:"show_incident_history"`
 	// Served asset URLs (managed via the dedicated asset endpoints)
@@ -52,6 +53,7 @@ type StatuspageInput struct {
 	ImprintURL           *string   `json:"imprint_url,omitempty"`
 	PrivacyPolicyURL     *string   `json:"privacy_policy_url,omitempty"`
 	ShowLogo             *bool     `json:"show_logo,omitempty"`
+	ShowLivi             *bool     `json:"show_livi,omitempty"`
 	ShowAffectedServices *bool     `json:"show_affected_services,omitempty"`
 	ShowIncidentHistory  *bool     `json:"show_incident_history,omitempty"`
 	AccessType           *string   `json:"access_type,omitempty"`

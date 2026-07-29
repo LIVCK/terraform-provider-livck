@@ -42,6 +42,7 @@ type statuspageModel struct {
 	ImprintURL           types.String `tfsdk:"imprint_url"`
 	PrivacyPolicyURL     types.String `tfsdk:"privacy_policy_url"`
 	ShowLogo             types.Bool   `tfsdk:"show_logo"`
+	ShowLivi             types.Bool   `tfsdk:"show_livi"`
 	ShowAffectedServices types.Bool   `tfsdk:"show_affected_services"`
 	ShowIncidentHistory  types.Bool   `tfsdk:"show_incident_history"`
 	// Access
@@ -145,6 +146,12 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				Optional:            true,
 				Computed:            true,
 				MarkdownDescription: "Whether the logo is rendered.",
+				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+			},
+			"show_livi": schema.BoolAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Whether LIVI (the LIVCK character) is rendered in the page header instead of the plain status icon. Defaults to enabled.",
 				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 			"show_affected_services": schema.BoolAttribute{
@@ -438,6 +445,7 @@ func brandingInput(ctx context.Context, plan *statuspageModel, diags *diag.Diagn
 	set(plan.ImprintURL, &in.ImprintURL)
 	set(plan.PrivacyPolicyURL, &in.PrivacyPolicyURL)
 	setBool(plan.ShowLogo, &in.ShowLogo)
+	setBool(plan.ShowLivi, &in.ShowLivi)
 	setBool(plan.ShowAffectedServices, &in.ShowAffectedServices)
 	setBool(plan.ShowIncidentHistory, &in.ShowIncidentHistory)
 	set(plan.AccessType, &in.AccessType)
@@ -468,6 +476,7 @@ func statuspageModelFromAPI(ctx context.Context, remote *client.Statuspage, prio
 		HasPassword: types.BoolValue(remote.HasPassword),
 		// Server-driven flags always reflect the effective value.
 		ShowLogo:             types.BoolValue(remote.ShowLogo),
+		ShowLivi:             types.BoolValue(remote.ShowLivi),
 		ShowAffectedServices: types.BoolValue(remote.ShowAffectedServices),
 		ShowIncidentHistory:  types.BoolValue(remote.ShowIncidentHistory),
 		// Served URLs.
