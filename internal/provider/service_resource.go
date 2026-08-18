@@ -45,6 +45,7 @@ type settingsModel struct {
 	TimeoutSeconds  types.Int64          `tfsdk:"timeout_seconds"`
 	Retries         types.Int64          `tfsdk:"retries"`
 	AssignedProbes  types.Set            `tfsdk:"assigned_probes"`
+	ProbeRoles      types.Map            `tfsdk:"probe_roles"`
 	Config          jsontypes.Normalized `tfsdk:"config"`
 }
 
@@ -133,6 +134,18 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 						ElementType:         types.StringType,
 						Optional:            true,
 						MarkdownDescription: "Probe location codes (see the `livck_probes` data source). Omitted, the organization's default locations apply.",
+					},
+					"probe_roles": schema.MapAttribute{
+						ElementType: types.StringType,
+						Optional:    true,
+						MarkdownDescription: "Role per monitoring location, keyed by probe code: `full` " +
+							"(default \u2014 counts for outage detection AND for uptime/response-time " +
+							"metrics) or `reachability` (still checks and still raises incidents, but " +
+							"is excluded from the metrics). Locations left out of the map are `full`, " +
+							"and at least one location must remain `full`. Omitted entirely, the " +
+							"organization's roles apply.\n\nOptional-only (no `Computed`): the API " +
+							"echoes back the raw per-service override, so a service that merely " +
+							"inherits reads back null and the plan stays clean.",
 					},
 					"config": schema.StringAttribute{
 						CustomType: jsontypes.NormalizedType{},
@@ -307,6 +320,11 @@ func settingsInputFromModel(ctx context.Context, m *settingsModel) (*client.Serv
 		diags.Append(m.AssignedProbes.ElementsAs(ctx, &probes, false)...)
 		in.AssignedProbes = &probes
 	}
+	if !m.ProbeRoles.IsNull() && !m.ProbeRoles.IsUnknown() {
+		roles := map[string]string{}
+		diags.Append(m.ProbeRoles.ElementsAs(ctx, &roles, false)...)
+		in.ProbeRoles = &roles
+	}
 	if !m.Config.IsNull() && !m.Config.IsUnknown() {
 		in.Config = json.RawMessage(m.Config.ValueString())
 	}
@@ -366,6 +384,14 @@ func serviceModelFromAPI(ctx context.Context, remote *client.Service, prior *ser
 		set, d := types.SetValueFrom(ctx, types.StringType, remote.Settings.AssignedProbes)
 		diags.Append(d...)
 		s.AssignedProbes = set
+	}
+
+	if len(remote.Settings.ProbeRoles) == 0 {
+		s.ProbeRoles = types.MapNull(types.StringType)
+	} else {
+		roles, d := types.MapValueFrom(ctx, types.StringType, remote.Settings.ProbeRoles)
+		diags.Append(d...)
+		s.ProbeRoles = roles
 	}
 
 	var priorConfig json.RawMessage

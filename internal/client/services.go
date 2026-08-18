@@ -20,20 +20,27 @@ type Service struct {
 }
 
 type ServiceSettings struct {
-	IntervalSeconds int64           `json:"interval_seconds"`
-	TimeoutSeconds  int64           `json:"timeout_seconds"`
-	Retries         int64           `json:"retries"`
-	AssignedProbes  []string        `json:"assigned_probes"`
-	Config          json.RawMessage `json:"config"`
+	IntervalSeconds int64    `json:"interval_seconds"`
+	TimeoutSeconds  int64    `json:"timeout_seconds"`
+	Retries         int64    `json:"retries"`
+	AssignedProbes  []string `json:"assigned_probes"`
+	// ProbeRoles is the RAW per-service override (nil = the organization's roles apply),
+	// keyed by probe code: "full" or "reachability".
+	ProbeRoles map[string]string `json:"probe_roles"`
+	Config     json.RawMessage   `json:"config"`
 }
 
 // ServiceSettingsInput is the write shape (settings block on store/update).
 type ServiceSettingsInput struct {
-	IntervalSeconds *int64          `json:"interval_seconds,omitempty"`
-	TimeoutSeconds  *int64          `json:"timeout_seconds,omitempty"`
-	Retries         *int64          `json:"retries,omitempty"`
-	AssignedProbes  *[]string       `json:"assigned_probes,omitempty"`
-	Config          json.RawMessage `json:"config,omitempty"`
+	IntervalSeconds *int64    `json:"interval_seconds,omitempty"`
+	TimeoutSeconds  *int64    `json:"timeout_seconds,omitempty"`
+	Retries         *int64    `json:"retries,omitempty"`
+	AssignedProbes  *[]string `json:"assigned_probes,omitempty"`
+	// Omitted keeps the stored roles (the API merges the settings block per key). A
+	// declared-but-empty map is sent as {}, which the API normalises to null — i.e. it
+	// clears the override and the service falls back to the organization's roles.
+	ProbeRoles *map[string]string `json:"probe_roles,omitempty"`
+	Config     json.RawMessage    `json:"config,omitempty"`
 }
 
 // ServiceInput.Tags is a *pointer* to a slice: nil means "don't touch the

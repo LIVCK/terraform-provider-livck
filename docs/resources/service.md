@@ -58,6 +58,9 @@ Optional:
 - `assigned_probes` (Set of String) Probe location codes (see the `livck_probes` data source). Omitted, the organization's default locations apply.
 - `config` (String, Sensitive) Check-type specific config as JSON (fields, conditions, headers, auth). Secret values (header values, auth credentials) are write-only: the API returns a keep-sentinel which the provider transparently resolves against the state, so plans stay clean. After `terraform import`, secrets cannot be recovered and must be re-applied.
 - `interval_seconds` (Number) Check interval. Floor/ceiling depend on your plan and the check type (e.g. SSL checks run at most hourly).
+- `probe_roles` (Map of String) Role per monitoring location, keyed by probe code: `full` (default — counts for outage detection AND for uptime/response-time metrics) or `reachability` (still checks and still raises incidents, but is excluded from the metrics). Locations left out of the map are `full`, and at least one location must remain `full`. Omitted entirely, the organization's roles apply.
+
+Optional-only (no `Computed`): the API echoes back the raw per-service override, so a service that merely inherits reads back null and the plan stays clean.
 - `retries` (Number)
 - `timeout_seconds` (Number)
 
