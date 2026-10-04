@@ -135,6 +135,9 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 						Optional:            true,
 						MarkdownDescription: "Probe location codes (see the `livck_probes` data source). Omitted, the organization's default locations apply.",
 					},
+					// Optional-only (no Computed): the API echoes back the raw
+					// per-service override, so a service that merely inherits
+					// reads back null and the plan stays clean.
 					"probe_roles": schema.MapAttribute{
 						ElementType: types.StringType,
 						Optional:    true,
@@ -143,9 +146,7 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 							"metrics) or `reachability` (still checks and still raises incidents, but " +
 							"is excluded from the metrics). Locations left out of the map are `full`, " +
 							"and at least one location must remain `full`. Omitted entirely, the " +
-							"organization's roles apply.\n\nOptional-only (no `Computed`): the API " +
-							"echoes back the raw per-service override, so a service that merely " +
-							"inherits reads back null and the plan stays clean.",
+							"organization's roles apply.",
 					},
 					"config": schema.StringAttribute{
 						CustomType: jsontypes.NormalizedType{},
@@ -386,16 +387,25 @@ func serviceModelFromAPI(ctx context.Context, remote *client.Service, prior *ser
 		s.AssignedProbes = set
 	}
 
-	if len(remote.Settings.ProbeRoles) == 0 {
-		s.ProbeRoles = types.MapNull(types.StringType)
-	} else {
+	priorRoles := prior.Settings.ProbeRoles
+	switch {
+	case len(remote.Settings.ProbeRoles) > 0:
 		roles, d := types.MapValueFrom(ctx, types.StringType, remote.Settings.ProbeRoles)
 		diags.Append(d...)
 		s.ProbeRoles = roles
+	case !priorRoles.IsNull() && !priorRoles.IsUnknown() && len(priorRoles.Elements()) == 0:
+		// The API collapses an empty role map to null, so "no override" has a
+		// single representation on the wire. A declared `probe_roles = {}` says
+		// the same thing; reading null back against it would fail the
+		// post-apply consistency check, so the empty map is kept.
+		s.ProbeRoles = priorRoles
+	default:
+		s.ProbeRoles = types.MapNull(types.StringType)
 	}
 
+	// prior and prior.Settings are non-nil here (early return above).
 	var priorConfig json.RawMessage
-	if prior != nil && prior.Settings != nil && !prior.Settings.Config.IsNull() && !prior.Settings.Config.IsUnknown() {
+	if !prior.Settings.Config.IsNull() && !prior.Settings.Config.IsUnknown() {
 		priorConfig = json.RawMessage(prior.Settings.Config.ValueString())
 	}
 

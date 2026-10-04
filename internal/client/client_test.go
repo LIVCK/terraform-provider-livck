@@ -263,3 +263,34 @@ func TestReconcileConfigNullPriorStaysUnmanaged(t *testing.T) {
 		t.Fatalf("unmanaged config must stay null, got %s", got)
 	}
 }
+
+func TestServiceProbeRolesDecode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		roles := `{"nyc":"reachability"}`
+		if r.URL.Path == "/v1/services/inherits" {
+			roles = `null`
+		}
+		_, _ = w.Write([]byte(`{"data":{"id":"svc","name":"n","check_type":"http","status":"up","is_paused":false,` +
+			`"settings":{"interval_seconds":60,"timeout_seconds":10,"retries":2,"assigned_probes":null,` +
+			`"probe_roles":` + roles + `,"config":{}}}}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "lvk_test")
+
+	override, err := c.GetService(context.Background(), "override")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := override.Settings.ProbeRoles; len(got) != 1 || got["nyc"] != "reachability" {
+		t.Fatalf("expected the role map, got %v", got)
+	}
+
+	inherits, err := c.GetService(context.Background(), "inherits")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inherits.Settings.ProbeRoles != nil {
+		t.Fatalf("a null role map must decode as nil, got %v", inherits.Settings.ProbeRoles)
+	}
+}
