@@ -35,16 +35,22 @@ type statuspageModel struct {
 	NameTranslations types.Map    `tfsdk:"name_translations"`
 	Slug             types.String `tfsdk:"slug"`
 	Published        types.Bool   `tfsdk:"published"`
-	// Appearance (Optional-only: null = unmanaged, never clobbered)
+	// Branding. The strings are Optional-only (null = unmanaged, never
+	// clobbered); the flags and enums are Optional+Computed and keep their
+	// current value when removed from the config.
 	PrimaryColor         types.String `tfsdk:"primary_color"`
 	SecondaryColor       types.String `tfsdk:"secondary_color"`
 	CustomCSS            types.String `tfsdk:"custom_css"`
 	ImprintURL           types.String `tfsdk:"imprint_url"`
 	PrivacyPolicyURL     types.String `tfsdk:"privacy_policy_url"`
 	ShowLogo             types.Bool   `tfsdk:"show_logo"`
+	LogoSize             types.String `tfsdk:"logo_size"`
 	ShowLivi             types.Bool   `tfsdk:"show_livi"`
 	ShowAffectedServices types.Bool   `tfsdk:"show_affected_services"`
 	ShowIncidentHistory  types.Bool   `tfsdk:"show_incident_history"`
+	// Appearance: light/dark mode of the public page.
+	Appearance            types.String `tfsdk:"appearance"`
+	AllowAppearanceSwitch types.Bool   `tfsdk:"allow_appearance_switch"`
 	// Access
 	AccessType         types.String `tfsdk:"access_type"`
 	Password           types.String `tfsdk:"password"`
@@ -88,8 +94,9 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "A public status page. Manage its structure with `livck_statuspage_component` / " +
-			"`livck_statuspage_metric`, and its whole appearance here: colors, custom CSS, legal links, " +
-			"visibility flags, access control and binary assets (logo/favicon uploaded from local files).",
+			"`livck_statuspage_metric`, and the page itself here: branding (colors, logo size, light/dark " +
+			"mode, custom CSS, legal links), visibility flags, access control and binary assets " +
+			"(logo/favicon uploaded from local files).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:      true,
@@ -119,7 +126,7 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				MarkdownDescription: "Live state. Publishing consumes a plan slot (fails at the limit); unpublishing is always allowed.",
 			},
 
-			// Appearance
+			// Branding
 			"primary_color": schema.StringAttribute{
 				Optional:            true,
 				MarkdownDescription: "Brand primary color as `#RRGGBB`. Unset stops managing it (does not reset a value set elsewhere).",
@@ -148,6 +155,15 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				MarkdownDescription: "Whether the logo is rendered.",
 				PlanModifiers:       []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
+			"logo_size": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Logo height in the page header: `small` (20 px), `medium` (28 px) or " +
+					"`large` (40 px). The server default is `medium`. Removing the attribute from the " +
+					"configuration keeps the current value.",
+				Validators:    []validator.String{stringvalidator.OneOf("small", "medium", "large")},
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
 			"show_livi": schema.BoolAttribute{
 				Optional:            true,
 				Computed:            true,
@@ -162,6 +178,26 @@ func (r *statuspageResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"show_incident_history": schema.BoolAttribute{
 				Optional:      true,
 				Computed:      true,
+				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
+			},
+
+			// Appearance (light/dark mode). No Default on purpose: omitted, the
+			// value set in the console stays untouched.
+			"appearance": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Light or dark mode of the public status page: `system`, `light` or `dark`. " +
+					"`system` follows the setting on the visitor's device. The server default is `system`. " +
+					"Removing the attribute from the configuration keeps the current value.",
+				Validators:    []validator.String{stringvalidator.OneOf("system", "light", "dark")},
+				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"allow_appearance_switch": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				MarkdownDescription: "Whether visitors get a switch for light and dark mode. `false` hides the " +
+					"switch and enforces `appearance` for every visitor. The server default is `true`. " +
+					"Removing the attribute from the configuration keeps the current value.",
 				PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()},
 			},
 
@@ -260,7 +296,7 @@ func (r *statuspageResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	// The create endpoint takes name+slug only; apply appearance/access in a
+	// The create endpoint takes name+slug only; apply branding/access in a
 	// follow-up update (mirrors the console, where branding is edit-only).
 	if branding, has := brandingInput(ctx, &plan, &resp.Diagnostics); has {
 		page, err = r.client.UpdateStatuspage(ctx, page.ID, branding)
@@ -419,9 +455,11 @@ func (r *statuspageResource) syncAssets(ctx context.Context, page *client.Status
 	return page
 }
 
-// brandingInput builds the appearance/access portion of the input from the plan.
+// brandingInput builds the branding/access portion of the input from the plan.
 // Fields the practitioner does not manage (null) are left out (omitempty), so an
-// unmanaged field is never clobbered. Returns whether anything was set.
+// unmanaged field is never clobbered. Unknown values are left out too: on create
+// an unconfigured Optional+Computed attribute is unknown, and the server default
+// applies. Returns whether anything was set.
 func brandingInput(ctx context.Context, plan *statuspageModel, diags *diag.Diagnostics) (client.StatuspageInput, bool) {
 	in := client.StatuspageInput{}
 	has := false
@@ -445,9 +483,12 @@ func brandingInput(ctx context.Context, plan *statuspageModel, diags *diag.Diagn
 	set(plan.ImprintURL, &in.ImprintURL)
 	set(plan.PrivacyPolicyURL, &in.PrivacyPolicyURL)
 	setBool(plan.ShowLogo, &in.ShowLogo)
+	set(plan.LogoSize, &in.LogoSize)
 	setBool(plan.ShowLivi, &in.ShowLivi)
 	setBool(plan.ShowAffectedServices, &in.ShowAffectedServices)
 	setBool(plan.ShowIncidentHistory, &in.ShowIncidentHistory)
+	set(plan.Appearance, &in.Appearance)
+	setBool(plan.AllowAppearanceSwitch, &in.AllowAppearanceSwitch)
 	set(plan.AccessType, &in.AccessType)
 	set(plan.Password, &in.Password)
 
@@ -479,6 +520,11 @@ func statuspageModelFromAPI(ctx context.Context, remote *client.Statuspage, prio
 		ShowLivi:             types.BoolValue(remote.ShowLivi),
 		ShowAffectedServices: types.BoolValue(remote.ShowAffectedServices),
 		ShowIncidentHistory:  types.BoolValue(remote.ShowIncidentHistory),
+		// A key missing from the response (a server that predates the field)
+		// reads as null, never as "" or false.
+		LogoSize:              types.StringPointerValue(remote.LogoSize),
+		Appearance:            types.StringPointerValue(remote.Appearance),
+		AllowAppearanceSwitch: types.BoolPointerValue(remote.AllowAppearanceSwitch),
 		// Served URLs.
 		LogoURL:     types.StringPointerValue(remote.LogoURL),
 		LogoDarkURL: types.StringPointerValue(remote.LogoDarkURL),
@@ -491,7 +537,7 @@ func statuspageModelFromAPI(ctx context.Context, remote *client.Statuspage, prio
 	}
 	m.Name, m.NameTranslations = translatableFromAPI(ctx, remote.Name, remote.NameTranslations, priorNames, diags)
 
-	// Appearance strings: echo the server value only when the field is managed
+	// Branding strings: echo the server value only when the field is managed
 	// (prior set), else keep null - a null Optional attribute is "unmanaged" and
 	// must not drift against the server's stored value.
 	m.PrimaryColor = keepOrEcho(prior, func(p *statuspageModel) types.String { return p.PrimaryColor }, remote.PrimaryColor)

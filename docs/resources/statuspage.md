@@ -3,12 +3,12 @@
 page_title: "livck_statuspage Resource - livck"
 subcategory: ""
 description: |-
-  A public status page. Manage its structure with livck_statuspage_component / livck_statuspage_metric, and its whole appearance here: colors, custom CSS, legal links, visibility flags, access control and binary assets (logo/favicon uploaded from local files).
+  A public status page. Manage its structure with livck_statuspage_component / livck_statuspage_metric, and the page itself here: branding (colors, logo size, light/dark mode, custom CSS, legal links), visibility flags, access control and binary assets (logo/favicon uploaded from local files).
 ---
 
 # livck_statuspage (Resource)
 
-A public status page. Manage its structure with `livck_statuspage_component` / `livck_statuspage_metric`, and its whole appearance here: colors, custom CSS, legal links, visibility flags, access control and binary assets (logo/favicon uploaded from local files).
+A public status page. Manage its structure with `livck_statuspage_component` / `livck_statuspage_metric`, and the page itself here: branding (colors, logo size, light/dark mode, custom CSS, legal links), visibility flags, access control and binary assets (logo/favicon uploaded from local files).
 
 ## Example Usage
 
@@ -16,12 +16,18 @@ A public status page. Manage its structure with `livck_statuspage_component` / `
 resource "livck_statuspage" "main" {
   name = "Acme Status"
 
-  # Appearance
+  # Branding
   primary_color      = "#0F172A"
   secondary_color    = "#22C55E"
   custom_css         = ".header { border-radius: 12px; }"
   imprint_url        = "https://acme.example/imprint"
   privacy_policy_url = "https://acme.example/privacy"
+  logo_size          = "large"
+
+  # Appearance: light or dark mode. "system" follows each visitor's device,
+  # and the switch lets visitors pick light or dark for themselves.
+  appearance              = "system"
+  allow_appearance_switch = true
 
   # Access control. The password is write-only and never read back.
   access_type = "password"
@@ -44,12 +50,15 @@ output "logo_url" { value = livck_statuspage.main.logo_url }
 ### Optional
 
 - `access_type` (String) One of `public`, `password`, `email_whitelist`. Switching to `password` requires `password`; `email_whitelist` requires a non-empty `email_whitelist`.
+- `allow_appearance_switch` (Boolean) Whether visitors get a switch for light and dark mode. `false` hides the switch and enforces `appearance` for every visitor. The server default is `true`. Removing the attribute from the configuration keeps the current value.
+- `appearance` (String) Light or dark mode of the public status page: `system`, `light` or `dark`. `system` follows the setting on the visitor's device. The server default is `system`. Removing the attribute from the configuration keeps the current value.
 - `custom_css` (String) Custom CSS injected into the public page (server-sanitized).
 - `email_whitelist` (Set of String) Allowed viewer emails for `email_whitelist` access. Null stops managing the list.
 - `favicon` (String) Path to a local favicon file (ico, png or svg, max 1 MB).
 - `imprint_url` (String) Footer imprint link (http/https/mailto only).
 - `logo` (String) Path to a local logo file (jpg, jpeg, png, webp or svg, max 2 MB). It is uploaded on apply. Change the file's contents and the next apply re-uploads it; remove the attribute to delete the logo.
 - `logo_dark` (String) Path to a local dark-mode logo file (jpg, jpeg, png, webp or svg, max 2 MB).
+- `logo_size` (String) Logo height in the page header: `small` (20 px), `medium` (28 px) or `large` (40 px). The server default is `medium`. Removing the attribute from the configuration keeps the current value.
 - `name` (String) Single-language name. Exactly one of `name` and `name_translations` must be set.
 - `name_translations` (Map of String) Multilingual name as a `{locale = value}` map.
 - `password` (String, Sensitive) Access password. Write-only: it is never read back, and the server only reports `has_password`. Minimum 8 characters. A change made in the console is not detected here.

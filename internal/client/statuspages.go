@@ -14,7 +14,7 @@ type Statuspage struct {
 	Slug             string            `json:"slug"`
 	IsPublished      bool              `json:"is_published"`
 	AccessType       string            `json:"access_type"`
-	// Appearance
+	// Branding
 	PrimaryColor         *string `json:"primary_color"`
 	SecondaryColor       *string `json:"secondary_color"`
 	CustomCSS            *string `json:"custom_css"`
@@ -24,6 +24,12 @@ type Statuspage struct {
 	ShowLivi             bool    `json:"show_livi"`
 	ShowAffectedServices bool    `json:"show_affected_services"`
 	ShowIncidentHistory  bool    `json:"show_incident_history"`
+	// Pointers on purpose: a server that predates one of these fields leaves the
+	// key out, and that has to read as null, not as a misleading "" or false.
+	LogoSize *string `json:"logo_size"`
+	// Appearance is the light/dark mode of the public page (system, light, dark).
+	Appearance            *string `json:"appearance"`
+	AllowAppearanceSwitch *bool   `json:"allow_appearance_switch"`
 	// Served asset URLs (managed via the dedicated asset endpoints)
 	LogoURL     *string `json:"logo_url"`
 	LogoDarkURL *string `json:"logo_dark_url"`
@@ -36,30 +42,30 @@ type Statuspage struct {
 }
 
 // StatuspageInput: translatable Name is `any` (plain string or {locale: value}
-// map). Nullable appearance fields keep omitempty - the provider only sends the
-// keys the practitioner actually set, and passes an explicit null (via a pointer
-// to nil is not possible with omitempty, so clearing is done by sending the zero
-// where meaningful). Password is write-only (never echoed; see HasPassword).
-// Every field is omitempty: the provider only sends the appearance/access keys
-// the practitioner actually manages (a null Optional attribute stops managing
-// that field, mirroring the tag/translation "null = unmanaged" idiom), so an
-// unmanaged field is never clobbered. Password is write-only (never echoed).
+// map). Every field is omitempty: the provider only sends the branding/access
+// keys the practitioner actually manages (a null Optional attribute stops
+// managing that field, mirroring the tag/translation "null = unmanaged" idiom),
+// so an unmanaged field is never clobbered. The pointers keep a deliberate false
+// on the wire. Password is write-only (never echoed; see HasPassword).
 type StatuspageInput struct {
-	Name                 any       `json:"name,omitempty"`
-	Slug                 *string   `json:"slug,omitempty"`
-	PrimaryColor         *string   `json:"primary_color,omitempty"`
-	SecondaryColor       *string   `json:"secondary_color,omitempty"`
-	CustomCSS            *string   `json:"custom_css,omitempty"`
-	ImprintURL           *string   `json:"imprint_url,omitempty"`
-	PrivacyPolicyURL     *string   `json:"privacy_policy_url,omitempty"`
-	ShowLogo             *bool     `json:"show_logo,omitempty"`
-	ShowLivi             *bool     `json:"show_livi,omitempty"`
-	ShowAffectedServices *bool     `json:"show_affected_services,omitempty"`
-	ShowIncidentHistory  *bool     `json:"show_incident_history,omitempty"`
-	AccessType           *string   `json:"access_type,omitempty"`
-	Password             *string   `json:"password,omitempty"`
-	EmailWhitelist       *[]string `json:"email_whitelist,omitempty"`
-	SubscriberChannels   *[]string `json:"subscriber_channels,omitempty"`
+	Name                  any       `json:"name,omitempty"`
+	Slug                  *string   `json:"slug,omitempty"`
+	PrimaryColor          *string   `json:"primary_color,omitempty"`
+	SecondaryColor        *string   `json:"secondary_color,omitempty"`
+	CustomCSS             *string   `json:"custom_css,omitempty"`
+	ImprintURL            *string   `json:"imprint_url,omitempty"`
+	PrivacyPolicyURL      *string   `json:"privacy_policy_url,omitempty"`
+	ShowLogo              *bool     `json:"show_logo,omitempty"`
+	LogoSize              *string   `json:"logo_size,omitempty"`
+	ShowLivi              *bool     `json:"show_livi,omitempty"`
+	ShowAffectedServices  *bool     `json:"show_affected_services,omitempty"`
+	ShowIncidentHistory   *bool     `json:"show_incident_history,omitempty"`
+	Appearance            *string   `json:"appearance,omitempty"`
+	AllowAppearanceSwitch *bool     `json:"allow_appearance_switch,omitempty"`
+	AccessType            *string   `json:"access_type,omitempty"`
+	Password              *string   `json:"password,omitempty"`
+	EmailWhitelist        *[]string `json:"email_whitelist,omitempty"`
+	SubscriberChannels    *[]string `json:"subscriber_channels,omitempty"`
 }
 
 // UploadStatuspageAsset POSTs a logo/logo-dark/favicon file (multipart). asset

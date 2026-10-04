@@ -62,7 +62,7 @@ else if you are not on LIVCK Cloud.
 | Resources | |
 |---|---|
 | `livck_service` | HTTP, TCP, DNS, ICMP, SSL and manual checks |
-| `livck_statuspage` | the page, its appearance, access control and assets |
+| `livck_statuspage` | the page, its branding, light/dark mode, access control and assets |
 | `livck_statuspage_component` | components and groups, including tag-synced ones |
 | `livck_statuspage_metric` / `livck_statuspage_metric_series` | charts |
 | `livck_maintenance` | scheduled windows |

@@ -264,6 +264,75 @@ func TestReconcileConfigNullPriorStaysUnmanaged(t *testing.T) {
 	}
 }
 
+// LogoSize, Appearance and AllowAppearanceSwitch are pointers so that a key an
+// older server leaves out stays distinguishable from a real "" or false.
+func TestStatuspageDisplayFieldsDecodeAsPointers(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/statuspages/older" {
+			_, _ = w.Write([]byte(`{"data":{"id":"older","name":"n","slug":"s","is_published":true,"access_type":"public","show_logo":true}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"id":"current","name":"n","slug":"s","is_published":true,"access_type":"public",` +
+			`"appearance":"light","allow_appearance_switch":false,"logo_size":"small"}}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "lvk_test")
+
+	older, err := c.GetStatuspage(context.Background(), "older")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if older.Appearance != nil || older.AllowAppearanceSwitch != nil || older.LogoSize != nil {
+		t.Fatalf("missing keys must decode as nil, got appearance=%v allow_appearance_switch=%v logo_size=%v",
+			older.Appearance, older.AllowAppearanceSwitch, older.LogoSize)
+	}
+
+	current, err := c.GetStatuspage(context.Background(), "current")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Appearance == nil || *current.Appearance != "light" {
+		t.Errorf("appearance: expected light, got %v", current.Appearance)
+	}
+	if current.AllowAppearanceSwitch == nil || *current.AllowAppearanceSwitch {
+		t.Errorf("allow_appearance_switch: expected an explicit false, got %v", current.AllowAppearanceSwitch)
+	}
+	if current.LogoSize == nil || *current.LogoSize != "small" {
+		t.Errorf("logo_size: expected small, got %v", current.LogoSize)
+	}
+}
+
+// A PATCH carries only the keys that are set, so everything else keeps its
+// server-side value. A deliberate false is a set value.
+func TestUpdateStatuspageSendsOnlySetKeys(t *testing.T) {
+	bodies := make(chan map[string]any, 1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			t.Errorf("expected PATCH, got %s", r.Method)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decoding request body: %v", err)
+		}
+		bodies <- body
+		_, _ = w.Write([]byte(`{"data":{"id":"page1","name":"n","slug":"s","is_published":true,"access_type":"public"}}`))
+	}))
+	defer srv.Close()
+
+	off := false
+	c := New(srv.URL, "lvk_test")
+	if _, err := c.UpdateStatuspage(context.Background(), "page1", StatuspageInput{AllowAppearanceSwitch: &off}); err != nil {
+		t.Fatal(err)
+	}
+
+	body := <-bodies
+	if len(body) != 1 || body["allow_appearance_switch"] != false {
+		t.Fatalf(`expected exactly {"allow_appearance_switch":false}, got %v`, body)
+	}
+}
+
 func TestServiceProbeRolesDecode(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		roles := `{"nyc":"reachability"}`

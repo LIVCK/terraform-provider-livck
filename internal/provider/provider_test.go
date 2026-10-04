@@ -142,15 +142,13 @@ resource "livck_service" "test" {
 	})
 }
 
-func TestAccStatuspageWithComponents_basic(t *testing.T) {
-	resource.Test(t, resource.TestCase{
-		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		Steps: []resource.TestStep{
-			{
-				Config: `
+// testAccStatuspageConfig renders a page with a group and a child component.
+// pageAttrs is spliced into the livck_statuspage block.
+func testAccStatuspageConfig(pageAttrs string) string {
+	return fmt.Sprintf(`
 resource "livck_statuspage" "test" {
   name = "tfacc-statuspage"
+%s
 }
 
 resource "livck_statuspage_component" "group" {
@@ -163,9 +161,25 @@ resource "livck_statuspage_component" "child" {
   statuspage_id = livck_statuspage.test.id
   name          = "tfacc-child"
   parent_id     = livck_statuspage_component.group.id
-}`,
+}`, pageAttrs)
+}
+
+func TestAccStatuspageWithComponents_basic(t *testing.T) {
+	const page = "livck_statuspage.test"
+	emptyFollowUpPlan := resource.TestStep{RefreshState: true, ExpectNonEmptyPlan: false}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccStatuspageConfig(""),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrSet("livck_statuspage.test", "slug"),
+					resource.TestCheckResourceAttrSet(page, "slug"),
+					// Not configured: the server defaults land in the state.
+					resource.TestCheckResourceAttr(page, "appearance", "system"),
+					resource.TestCheckResourceAttr(page, "allow_appearance_switch", "true"),
+					resource.TestCheckResourceAttr(page, "logo_size", "medium"),
 					resource.TestCheckResourceAttr("livck_statuspage_component.group", "is_group", "true"),
 					resource.TestCheckResourceAttrPair(
 						"livck_statuspage_component.child", "parent_id",
@@ -173,9 +187,29 @@ resource "livck_statuspage_component" "child" {
 					),
 				),
 			},
+			emptyFollowUpPlan,
 			{
-				RefreshState:       true,
-				ExpectNonEmptyPlan: false,
+				Config: testAccStatuspageConfig(`
+  appearance              = "dark"
+  allow_appearance_switch = false
+  logo_size               = "large"`),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr(page, "appearance", "dark"),
+					resource.TestCheckResourceAttr(page, "allow_appearance_switch", "false"),
+					resource.TestCheckResourceAttr(page, "logo_size", "large"),
+				),
+			},
+			emptyFollowUpPlan,
+			{
+				// Removed from the config, the values stay as they are, so
+				// there is nothing to plan.
+				Config:   testAccStatuspageConfig(""),
+				PlanOnly: true,
+			},
+			{
+				ResourceName:      page,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
