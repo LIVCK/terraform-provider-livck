@@ -134,7 +134,8 @@ make build     # compile
 make test      # unit tests, no network
 make generate  # rebuild docs/ from the schema and examples/
 
-# Acceptance tests need a live instance and a token:
+# Acceptance tests need a live instance, a token and an explicit
+# LIVCK_ENDPOINT (there is no fallback to the production API):
 TF_ACC=1 LIVCK_ENDPOINT=http://localhost:15800/api LIVCK_API_TOKEN=lvk_... make testacc
 ```
 

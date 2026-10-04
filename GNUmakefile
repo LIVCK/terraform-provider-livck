@@ -18,7 +18,8 @@ fmt:
 test:
 	go test -v -race -cover ./internal/...
 
-# Acceptance tests run against a REAL LIVCK instance:
+# Acceptance tests run against a REAL LIVCK instance. LIVCK_ENDPOINT is required
+# (there is no fallback to the production API):
 #   TF_ACC=1 LIVCK_ENDPOINT=http://localhost:15800/api LIVCK_API_TOKEN=lvk_... make testacc
 # With OpenTofu as the test runner, additionally set:
 #   TF_ACC_TERRAFORM_PATH=$(which tofu) TF_ACC_PROVIDER_HOST=registry.opentofu.org

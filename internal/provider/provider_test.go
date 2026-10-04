@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -10,20 +11,37 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
+// errNoAccEndpoint stops an acceptance run that does not name its target. The
+// provider falls back to the production API when LIVCK_ENDPOINT is unset, and
+// these tests create and delete real resources.
+var errNoAccEndpoint = errors.New("LIVCK_ENDPOINT must be set for acceptance tests. They create and " +
+	"delete real resources, so they never fall back to the production API. For the local dev stack: " +
+	"LIVCK_ENDPOINT=http://localhost:15800/api")
+
 // testAccProtoV6ProviderFactories instantiates the provider for acceptance
-// tests (protocol v6).
+// tests (protocol v6). It refuses to start without an explicit LIVCK_ENDPOINT,
+// so a test that skips testAccPreCheck still cannot reach production.
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-	"livck": providerserver.NewProtocol6WithError(New("test")()),
+	"livck": func() (tfprotov6.ProviderServer, error) {
+		if os.Getenv("LIVCK_ENDPOINT") == "" {
+			return nil, errNoAccEndpoint
+		}
+		return providerserver.NewProtocol6WithError(New("test")())()
+	},
 }
 
-// testAccPreCheck skips unless the environment points at a live instance.
-// Run against the local dev stack:
+// testAccPreCheck fails fast unless the environment explicitly points at a live
+// instance. Run against the local dev stack:
 //
-//	TF_ACC=1 LIVCK_ENDPOINT=http://localhost:8000/api LIVCK_API_TOKEN=lvk_... make testacc
+//	TF_ACC=1 LIVCK_ENDPOINT=http://localhost:15800/api LIVCK_API_TOKEN=lvk_... make testacc
 func testAccPreCheck(t *testing.T) {
 	t.Helper()
+	if os.Getenv("LIVCK_ENDPOINT") == "" {
+		t.Fatal(errNoAccEndpoint)
+	}
 	if os.Getenv("LIVCK_API_TOKEN") == "" {
-		t.Skip("LIVCK_API_TOKEN not set, acceptance tests need a live instance and an org token")
+		t.Fatal("LIVCK_API_TOKEN must be set for acceptance tests: an organization API token (lvk_...) " +
+			"for the instance at LIVCK_ENDPOINT.")
 	}
 }
 
