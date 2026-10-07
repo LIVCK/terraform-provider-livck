@@ -146,7 +146,8 @@ func (r *serviceResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 							"metrics) or `reachability` (still checks and still raises incidents, but " +
 							"is excluded from the metrics). Locations left out of the map are `full`, " +
 							"and at least one location must remain `full`. Omitted entirely, the " +
-							"organization's roles apply.",
+							"organization's roles apply: removing the attribute clears an override, " +
+							"including one set in the console.",
 					},
 					"config": schema.StringAttribute{
 						CustomType: jsontypes.NormalizedType{},
@@ -321,7 +322,16 @@ func settingsInputFromModel(ctx context.Context, m *settingsModel) (*client.Serv
 		diags.Append(m.AssignedProbes.ElementsAs(ctx, &probes, false)...)
 		in.AssignedProbes = &probes
 	}
-	if !m.ProbeRoles.IsNull() && !m.ProbeRoles.IsUnknown() {
+	switch {
+	case m.ProbeRoles.IsUnknown():
+		// Not known yet: the next apply sends it.
+	case m.ProbeRoles.IsNull():
+		// Omitted means the organization's roles apply, so an override that was declared
+		// before (or set in the console) is cleared with {}. Leaving the key out kept that
+		// override and failed the post-apply check against the planned null.
+		roles := map[string]string{}
+		in.ProbeRoles = &roles
+	default:
 		roles := map[string]string{}
 		diags.Append(m.ProbeRoles.ElementsAs(ctx, &roles, false)...)
 		in.ProbeRoles = &roles

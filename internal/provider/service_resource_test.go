@@ -47,7 +47,7 @@ func TestSettingsInputProbeRoles(t *testing.T) {
 	}{
 		{"a declared map is sent as an object", mustMap(t, map[string]string{"nyc": "reachability"}), `{"nyc":"reachability"}`},
 		{"a declared empty map is sent as {}, which clears the override", mustMap(t, map[string]string{}), `{}`},
-		{"a null map leaves the key out", types.MapNull(types.StringType), ""},
+		{"a null map is sent as {}, so the organization's roles apply again", types.MapNull(types.StringType), `{}`},
 		{"an unknown map leaves the key out", types.MapUnknown(types.StringType), ""},
 	}
 
