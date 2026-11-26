@@ -26,10 +26,12 @@ import (
 // which the API deliberately does not distinguish).
 var ErrNotFound = errors.New("resource not found")
 
-// APIError is a non-validation error response ({"message": ...}).
+// APIError is a non-validation error response ({"message": ...}). Code carries
+// the machine-readable reason some endpoints add (e.g. "stale" on a 409).
 type APIError struct {
 	StatusCode int
 	Message    string
+	Code       string
 }
 
 func (e *APIError) Error() string {
@@ -37,9 +39,21 @@ func (e *APIError) Error() string {
 }
 
 // ValidationError is a 422 with Laravel's standard {message, errors} envelope.
+// Some endpoints add `violations`, one stable code per failed field.
 type ValidationError struct {
-	Message string              `json:"message"`
-	Errors  map[string][]string `json:"errors"`
+	Message    string              `json:"message"`
+	Errors     map[string][]string `json:"errors"`
+	Violations []Violation         `json:"violations"`
+}
+
+// Violation names a field (dotted path, e.g. "schedule.start_time") and the
+// stable reason it was refused for (e.g. "invalid_rule.format"). OverrideID is
+// set when a rule change would break an existing exception of a recurring
+// maintenance.
+type Violation struct {
+	Field      string  `json:"field"`
+	Code       string  `json:"code"`
+	OverrideID *string `json:"override_id"`
 }
 
 func (e *ValidationError) Error() string {
@@ -187,12 +201,13 @@ func (c *Client) send(req *http.Request, contentType string, out any) error {
 	default:
 		msg := struct {
 			Message string `json:"message"`
+			Code    string `json:"code"`
 		}{}
 		_ = json.Unmarshal(raw, &msg)
 		if msg.Message == "" {
 			msg.Message = strings.TrimSpace(string(raw))
 		}
-		return &APIError{StatusCode: resp.StatusCode, Message: msg.Message}
+		return &APIError{StatusCode: resp.StatusCode, Message: msg.Message, Code: msg.Code}
 	}
 }
 
