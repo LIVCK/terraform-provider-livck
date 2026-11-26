@@ -1,0 +1,1 @@
+terraform import livck_recurring_maintenance.nightly_backup <recurring_maintenance_public_id>

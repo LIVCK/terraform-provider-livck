@@ -66,6 +66,7 @@ else if you are not on LIVCK Cloud.
 | `livck_statuspage_component` | components and groups, including tag-synced ones |
 | `livck_statuspage_metric` / `livck_statuspage_metric_series` | charts |
 | `livck_maintenance` | scheduled windows |
+| `livck_recurring_maintenance` | windows that repeat: nightly, weekly, monthly |
 | `livck_tag` | org-wide labels for services |
 | `livck_custom_domain` | your own hostname on a status page |
 
